@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="UTF-8">
+<title>Style guide</title>
+<body>
+<h2>Whitespace</h2>
+<ul>
+<li>Use two spaces for indentation. This makes for less wasted space and shorter lines.</li>
+<li>Tabs are not allowed. This ensures that indentation remains consistent.</li>
+<li>Don't leave trailing spaces.</li>
+<li>Use one space after language keywords to distinguish them from function calls.</li>
+<li>Use one space after commas, but not before. This is easier to read.</li>
+<li>Use one space before and after operators. This is easier to read.</li>
+<li>End files with a newline.</li>
+</ul>
+<h2>Code style</h2>
+<ul>
+<li>Put opening braces at the end of the line that creates the block, preceded by a space. This allows for more viewable lines of code at once.</li>
+<li>Put closing braces on their own line, indented at the same level as the line that created the block.</li>
+<li>Always use braces for code blocks, even if the block consists of only one line. This is more clear and future-proof.</li>
+<li>Put <code>else</code> on its own line, preceding a block. This is more clear.</li>
+</ul>
+<h2>Function and variable naming</h2>
+<ul>
+<li>Use CamelCase for class names, struct names, and enumeration values.</li>
+<li>Use lowerCamelCase for constants and variable names.</li>
+</ul>
+<h3>Prefixes</h3>
+<p>There are two types of prefixes, which can be used in conjunction. They make code easier to understand and use, and help with code autocompletion. These are scope prefixes and usage prefixes.</p>
+<h4>Scope prefixes</h4>
+<p>Scope prefixes consist of one character and are followed by an underscore.</p>
+<p>You must use the following prefixes:</p>
+<dl>
+<dt>a</dt>
+<dd>function argument/parameter</dd>
+<dt>m</dt>
+<dd>(non-static) class member</dd>
+</dl>
+<h4>Usage prefixes</h4>
+<p>Usage prefixes consist of one or more characters and follow the scope prefix, if present.</p>
+<p>You must use the following prefixes:</p>
+<dl>
+<dt>i</dt>
+<dd>index (of for loops, arrays, and objects that use the subscript ([]) operator in the same way)</dd>
+<dt>k</dt>
+<dd>constant</dd>
+<dt>n</dt>
+<dd>amount of something</dd>
+<dt>p</dt>
+<dd>pointer</dd>
+<dt>pp</dt>
+<dd>pointer to pointer</dd>
+</dl>
+<h4>Examples</h4>
+<dl>
+<dt><code>m_x</code></dt>
+<dd>A member variable named x.</dd>
+<dt><code>a_pSprite</code>
+<dd>A function argument parameter that is a pointer to a sprite.</dd>
+<dt><code>knBitmaps</code></dt>
+<dd>A constant of an amount of bitmaps.</dd>
+</dl>
+</body>
+</html>
