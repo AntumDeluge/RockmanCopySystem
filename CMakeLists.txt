@@ -38,3 +38,8 @@ if(SDL2_FOUND)
 		${SDL2_LIBRARIES}
 	)
 endif()
+
+file(GLOB APP_DATA "${PROJECT_SOURCE_DIR}/data/*")
+foreach(DATA_FILE ${APP_DATA})
+	file(COPY "${DATA_FILE}" DESTINATION "${PROJECT_BINARY_DIR}")
+endforeach()
