@@ -1,9 +1,9 @@
 #include "stageselect.h"
 #include "gamestatemanager.h"
-#include "globals.h"
 #include "inidictionary.h"
 #include "menuitem.h"
 #include "servicelocator.h"
+#include <cstdio>
 #include <string>
 
 
@@ -17,7 +17,6 @@ StageSelect::StageSelect(GameStateManager* a_pGameStateManager)
   , m_font("font.ini")
   , m_pLevelMenu(0)
   , m_pRockmanMenu(0)
-  , m_pSelectorIconBitmap(0)
 {
   IniDictionary resourcesDictionary("stageselect.ini");
   m_nLevels = resourcesDictionary.getIntValue("amount", "Levels", 0);
@@ -26,7 +25,7 @@ StageSelect::StageSelect(GameStateManager* a_pGameStateManager)
   int y = kLevelMenuPosY;
   for (int iLevel = 0; iLevel < m_nLevels; iLevel++) {
     char indexString[2];
-    sprintf(indexString, "%d", iLevel);
+    std::sprintf(indexString, "%d", iLevel);
     std::string key("level");
     key += indexString;
     const char* pValue = resourcesDictionary.getCStringValue(key.c_str(), "Levels", "empty");
@@ -40,7 +39,7 @@ StageSelect::StageSelect(GameStateManager* a_pGameStateManager)
   y = kRockmanMenuPosY;
   for (int iRockman = 0; iRockman < m_nRockmans; iRockman++) {
     char indexString[2];
-    sprintf(indexString, "%d", iRockman);
+    std::sprintf(indexString, "%d", iRockman);
     std::string key("rockman");
     key += indexString;
     const char* pValue = resourcesDictionary.getCStringValue(key.c_str(), "Rockmans", "empty");
@@ -51,12 +50,12 @@ StageSelect::StageSelect(GameStateManager* a_pGameStateManager)
     y += m_font.getCharacterHeight();
   }
   VideoService& videoService = ServiceLocator::getVideoService();
-  m_pSelectorIconBitmap = videoService.loadSurface("selector.bmp");
+  videoService.loadBitmap(m_selectorIconBitmap, "selector.bmp");
 }
 
 StageSelect::~StageSelect() {
   VideoService& videoService = ServiceLocator::getVideoService();
-  videoService.unloadSurface(m_pSelectorIconBitmap);
+  videoService.unloadBitmap(m_selectorIconBitmap);
   delete[] m_pRockmanMenu;
   delete[] m_pLevelMenu;
 }
@@ -73,14 +72,14 @@ void StageSelect::draw() {
   int selectorIconX = m_pLevelMenu[m_iSelectedLevelMenuItem].getX();
   int selectorIconY = m_pLevelMenu[m_iSelectedLevelMenuItem].getY();
   // Place the icon in front of the menu item.
-  selectorIconX -= m_pSelectorIconBitmap->w;
-  videoService.blitToScreen(m_pSelectorIconBitmap, selectorIconX, selectorIconY);
+  selectorIconX -= m_selectorIconBitmap.width;
+  videoService.copyToScreen(m_selectorIconBitmap, selectorIconX, selectorIconY);
   if (m_levelChosen) {
     selectorIconX = m_pRockmanMenu[m_iSelectedRockmanMenuItem].getX();
     selectorIconY = m_pRockmanMenu[m_iSelectedRockmanMenuItem].getY();
     // Place the icon in front of the menu item.
-    selectorIconX -= m_pSelectorIconBitmap->w;
-    videoService.blitToScreen(m_pSelectorIconBitmap, selectorIconX, selectorIconY);
+    selectorIconX -= m_selectorIconBitmap.width;
+    videoService.copyToScreen(m_selectorIconBitmap, selectorIconX, selectorIconY);
   }
 }
 

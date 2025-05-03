@@ -1,9 +1,9 @@
 #include "inidictionary.h"
-#include <fstream>
-#include <stdlib.h>
 #ifdef DEBUG
-  #include "SDL.h"
+#  include <cstdio>
 #endif
+#include <cstdlib>
+#include <fstream>
 
 
 IniDictionary::IniDictionary(const char* a_pFilename) {
@@ -28,7 +28,7 @@ IniDictionary::IniDictionary(const char* a_pFilename) {
           std::map<std::string, std::string> entry;
           std::pair<std::string, std::map<std::string, std::string> > section(sectionName, entry);
 #ifdef DEBUG
-          printf("IniDictionary: section found: %s\n", sectionName.c_str());
+          std::printf("IniDictionary: section found: %s\n", sectionName.c_str());
 #endif
           m_dictionary.insert(section);
           currentSectionName = sectionName;
@@ -41,7 +41,7 @@ IniDictionary::IniDictionary(const char* a_pFilename) {
           trim(value);
           std::pair<std::string, std::string> entry(key, value);
 #ifdef DEBUG
-          printf("IniDictionary: pair found: %s = %s\n", key.c_str(), value.c_str());
+          std::printf("IniDictionary: pair found: %s = %s\n", key.c_str(), value.c_str());
 #endif
           m_dictionary[currentSectionName].insert(entry);
         }
@@ -66,19 +66,19 @@ void IniDictionary::trim(std::string& a_string) {
 
 bool IniDictionary::getBoolValue(const char* a_pKey, const char* a_pSectionName, bool a_defaultValue) {
 #ifdef DEBUG
-  printf("getBoolValue: key %s from section %s\n", a_pKey, a_pSectionName);
+  std::printf("getBoolValue: key %s from section %s\n", a_pKey, a_pSectionName);
 #endif
   int nSectionKeys = m_dictionary.count(a_pSectionName);
   if (nSectionKeys == 0) {
 #ifdef DEBUG
-    printf("getBoolValue: WARNING: section not found\n");
+    std::printf("getBoolValue: WARNING: section not found\n");
 #endif
     return a_defaultValue;
   }
   int nKeys = m_dictionary[a_pSectionName].count(a_pKey);
   if (nKeys == 0) {
 #ifdef DEBUG
-    printf("getBoolValue: WARNING: key not found\n");
+    std::printf("getBoolValue: WARNING: key not found\n");
 #endif
     return a_defaultValue;
   }
@@ -94,19 +94,19 @@ bool IniDictionary::getBoolValue(const char* a_pKey, const char* a_pSectionName,
 
 const char* IniDictionary::getCStringValue(const char* a_pKey, const char* a_pSectionName, const char* a_defaultValue) {
 #ifdef DEBUG
-  printf("getCStringValue: key %s from section %s\n", a_pKey, a_pSectionName);
+  std::printf("getCStringValue: key %s from section %s\n", a_pKey, a_pSectionName);
 #endif
   int nSectionKeys = m_dictionary.count(a_pSectionName);
   if (nSectionKeys == 0) {
 #ifdef DEBUG
-    printf("getCStringValue: WARNING: section not found\n");
+    std::printf("getCStringValue: WARNING: section not found\n");
 #endif
     return a_defaultValue;
   }
   int nKeys = m_dictionary[a_pSectionName].count(a_pKey);
   if (nKeys == 0) {
 #ifdef DEBUG
-    printf("getCStringValue: WARNING: key not found\n");
+    std::printf("getCStringValue: WARNING: key not found\n");
 #endif
     return a_defaultValue;
   }
@@ -116,19 +116,19 @@ const char* IniDictionary::getCStringValue(const char* a_pKey, const char* a_pSe
 
 int IniDictionary::getIntValue(const char* a_pKey, const char* a_pSectionName, int a_defaultValue) {
 #ifdef DEBUG
-  printf("getIntValue: key %s from section %s\n", a_pKey, a_pSectionName);
+  std::printf("getIntValue: key %s from section %s\n", a_pKey, a_pSectionName);
 #endif
   int nSectionKeys = m_dictionary.count(a_pSectionName);
   if (nSectionKeys == 0) {
 #ifdef DEBUG
-    printf("getIntValue: WARNING: section not found\n");
+    std::printf("getIntValue: WARNING: section not found\n");
 #endif
     return a_defaultValue;
   }
   int nKeys = m_dictionary[a_pSectionName].count(a_pKey);
   if (nKeys == 0) {
 #ifdef DEBUG
-    printf("getIntValue: WARNING: key not found\n");
+    std::printf("getIntValue: WARNING: key not found\n");
 #endif
     return a_defaultValue;
   }

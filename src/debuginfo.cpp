@@ -16,13 +16,13 @@ void DebugInfo::draw(int a_x, int a_y, int a_xSpeed, int a_ySpeed, int a_ladderS
   unsigned int ySpeedUnsigned = a_ySpeed;
   unsigned int ySpeed = (ySpeedUnsigned >> 8) & 255;
   unsigned int ySpeedFractions = ySpeedUnsigned & 255;
-  m_font.drawNumber(x, 8, 8, 3);
-  m_font.drawNumber(xFractions, 40, 8, 3);
-  m_font.drawNumber(y, 8, 16, 3);
-  m_font.drawNumber(yFractions, 40, 16, 3);
-  m_font.drawNumber(xSpeed, 16, 24, 2);
-  m_font.drawNumber(xSpeedFractions, 40, 24, 3);
-  m_font.drawNumber(ySpeed, 8, 32, 3);
-  m_font.drawNumber(ySpeedFractions, 40, 32, 3);
-  m_font.drawNumber(a_ladderSonarInt, 16, 48, 2);
+  m_font.drawNumberOnScreen(x, 8, 8, 3);
+  m_font.drawNumberOnScreen(xFractions, 40, 8, 3);
+  m_font.drawNumberOnScreen(y, 8, 16, 3);
+  m_font.drawNumberOnScreen(yFractions, 40, 16, 3);
+  m_font.drawNumberOnScreen(xSpeed, 16, 24, 2);
+  m_font.drawNumberOnScreen(xSpeedFractions, 40, 24, 3);
+  m_font.drawNumberOnScreen(ySpeed, 8, 32, 3);
+  m_font.drawNumberOnScreen(ySpeedFractions, 40, 32, 3);
+  m_font.drawNumberOnScreen(a_ladderSonarInt, 16, 48, 2);
 }

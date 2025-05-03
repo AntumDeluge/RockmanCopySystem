@@ -1,12 +1,11 @@
 #include "collider.h"
-#include "SDL.h"
 
 
-Collider::Collider(SDL_Rect* a_pBoundary)
+Collider::Collider(Rect* a_pBoundary)
   : m_pBoundary(a_pBoundary)
 {}
 
-bool Collider::areColliding(SDL_Rect* a_pBoxA, SDL_Rect* a_pBoxB) {
+bool Collider::areColliding(Rect* a_pBoxA, Rect* a_pBoxB) {
   int leftBoxA = a_pBoxA->x;
   int rightBoxA = a_pBoxA->x + a_pBoxA->w;
   int topBoxA = a_pBoxA->y;
@@ -31,11 +30,11 @@ bool Collider::areColliding(SDL_Rect* a_pBoxA, SDL_Rect* a_pBoxB) {
 }
 
 bool Collider::collidesWith(Collider* a_pCollider) {
-  SDL_Rect collideeBoundary = a_pCollider->getBoundary();
+  Rect collideeBoundary = a_pCollider->getBoundary();
   bool collides = areColliding(m_pBoundary, &collideeBoundary);
   return collides;
 }
 
-SDL_Rect Collider::getBoundary() {
+Rect Collider::getBoundary() {
   return *m_pBoundary;
 }

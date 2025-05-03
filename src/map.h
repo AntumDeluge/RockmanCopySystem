@@ -1,11 +1,12 @@
 #ifndef MAP_H
 #define MAP_H
 
-#include "SDL.h"
+#include "bitmap.h"
 #include "direction.h"
 #include "fixedpoint8.h"
 #include "inidictionary.h"
 #include "laddersonar.h"
+#include "rect.h"
 #include "tile.h"
 
 class Camera;
@@ -26,22 +27,22 @@ class Map {
   int m_nScreens, m_nScreensHorizontal, m_nScreensVertical;
   int m_scrollStartPosTop, m_scrollStartPosBottom;
   int m_teleportStopPosY;
+  Bitmap m_tileSetBitmap;
   FixedPoint8 m_teleportStartYSpeed;
-  SDL_Rect* m_pBoundaries;
-  SDL_Rect* m_pTileSetBitmapAreas;
-  SDL_Surface* m_pTileSetBitmap;
+  Rect* m_pBoundaries;
+  Rect* m_pTileSetBitmapAreas;
   Tile** m_ppScreens;
 
   public:
   Map(const char* a_pMapName, IniDictionary& a_iniDictionary);
   ~Map();
   void draw(Camera& a_camera);
-  SDL_Rect getCurrentBoundary();
+  Rect getCurrentBoundary();
   inline int getHeight() {
     return m_height;
   }
-  int getMaxXDelta(SDL_Rect a_boundingBox, Direction::type a_direction);
-  int getMaxYDelta(SDL_Rect a_boundingBox, Direction::type a_direction);
+  int getMaxXDelta(Rect a_boundingBox, Direction::type a_direction);
+  int getMaxYDelta(Rect a_boundingBox, Direction::type a_direction);
   LadderSonar getLadderSonar(int a_x, int a_y, int a_yNextFrame, bool a_movingUp);
   FixedPoint8 getTeleportStartPosX();
   FixedPoint8 getTeleportStartPosY();

@@ -5,6 +5,7 @@
 #include "inidictionary.h"
 #include "map.h"
 #include "rockman.h"
+#include "rect.h"
 #include "servicelocator.h"
 #include <string>
 
@@ -16,24 +17,24 @@ Level::Level(GameStateManager* a_pGameStateManager)
   , m_beforeScrollDuration(0)
   , m_afterScrollDuration(0)
   , m_verticalScrollSpeed(0)
+  , m_readyMessageWidth(0)
   , m_scrollDirection(Direction::None)
   , m_state(State::Waiting)
   , m_pEnemy(0)
   , m_pGameStateManager(a_pGameStateManager)
   , m_pMap(0)
   , m_pRockman(0)
-  , m_pReadyBitmap(0)
 {
   std::string levelName = m_pGameStateManager->getInitMessage(GameStateManager::InitMessageId::Level);
   std::string rockmanType = m_pGameStateManager->getInitMessage(GameStateManager::InitMessageId::Rockman);
   IniDictionary levelConstants("levels.ini");
   std::string readyMessage(levelConstants.getCStringValue("readyMessage", "Common", "empty"));
   Font font("font.ini");
-  int readyMessageWidth = readyMessage.length() * font.getCharacterWidth();
+  m_readyMessageWidth = readyMessage.length() * font.getCharacterWidth();
   int readyMessageHeight = font.getCharacterHeight();
   VideoService& videoService = ServiceLocator::getVideoService();
-  m_pReadyBitmap = videoService.createSurface(readyMessageWidth, readyMessageHeight);
-  font.drawText(readyMessage, m_pReadyBitmap);
+  videoService.createBitmap(m_readyBitmap, m_readyMessageWidth, readyMessageHeight);
+  font.drawTextOnBitmap(readyMessage, m_readyBitmap);
   m_pMap = new Map(levelName.c_str(), levelConstants);
   IniDictionary rockmanConstants(rockmanType.c_str());
   m_scrollDuration = rockmanConstants.getIntValue("scrolling", "Durations", 0);
@@ -44,9 +45,9 @@ Level::Level(GameStateManager* a_pGameStateManager)
   int scrollStartPosBottom = rockmanConstants.getIntValue("startPosBottom", "ScrollConstants", kScreenHeight);
   m_pMap->setScrollStartPositions(scrollStartPosTop, scrollStartPosBottom);
   m_pRockman = new Rockman(rockmanConstants, this, m_pMap);
-  const SDL_Rect& rockmanBoundingBox = m_pRockman->getBoundingBox();
+  const Rect& rockmanBoundingBox = m_pRockman->getBoundingBox();
   m_pMap->setCurrentBoundaryByPosition(rockmanBoundingBox.x, rockmanBoundingBox.y);
-  SDL_Rect currentBoundary = m_pMap->getCurrentBoundary();
+  Rect currentBoundary = m_pMap->getCurrentBoundary();
   m_camera.setCurrentBoundary(currentBoundary);
   m_camera.update(rockmanBoundingBox);
   m_pEnemy = new Enemy();
@@ -54,7 +55,7 @@ Level::Level(GameStateManager* a_pGameStateManager)
 
 Level::~Level() {
   VideoService& videoService = ServiceLocator::getVideoService();
-  videoService.unloadSurface(m_pReadyBitmap);
+  videoService.unloadBitmap(m_readyBitmap);
   delete m_pEnemy;
   delete m_pRockman;
   delete m_pMap;
@@ -69,9 +70,9 @@ void Level::draw() {
   else {
     m_pMap->draw(m_camera);
     // Center the message.
-    int readyMessagePosX = (kScreenWidth / 2) - (m_pReadyBitmap->w / 2);
+    int readyMessagePosX = (kScreenWidth / 2) - (m_readyMessageWidth / 2);
     VideoService& videoService = ServiceLocator::getVideoService();
-    videoService.blitToScreen(m_pReadyBitmap, readyMessagePosX, kReadyMessagePosY, 0);
+    videoService.copyToScreen(m_readyBitmap, readyMessagePosX, kReadyMessagePosY, 0);
     if (m_duration == kWaitingDuration) {
       m_state = State::Playing;
       m_duration = 0;
@@ -83,7 +84,7 @@ void Level::onReset() {
   int rockmanPosX = m_pRockman->getX();
   int rockmanPosY = m_pRockman->getY();
   m_pMap->setCurrentBoundaryByPosition(rockmanPosX, rockmanPosY);
-  SDL_Rect currentBoundary = m_pMap->getCurrentBoundary();
+  Rect currentBoundary = m_pMap->getCurrentBoundary();
   m_camera.setCurrentBoundary(currentBoundary);
   m_state = State::Waiting;
   m_duration = 0;
@@ -111,7 +112,7 @@ void Level::onScrollStart(Direction::type a_direction) {
 void Level::update(Controls a_controls) {
   if (m_state == State::Playing) {
     m_pRockman->update(a_controls, m_camera);
-    const SDL_Rect& rockmanBoundingBox = m_pRockman->getBoundingBox();
+    const Rect& rockmanBoundingBox = m_pRockman->getBoundingBox();
     m_camera.update(rockmanBoundingBox);
     if (!m_stateChanged) {
       m_pEnemy->update();
@@ -135,7 +136,7 @@ void Level::update(Controls a_controls) {
       int rockmanPosX = m_pRockman->getX();
       int rockmanPosY = m_pRockman->getY();
       m_pMap->setCurrentBoundaryByPosition(rockmanPosX, rockmanPosY);
-      SDL_Rect currentBoundary = m_pMap->getCurrentBoundary();
+      Rect currentBoundary = m_pMap->getCurrentBoundary();
       m_camera.setCurrentBoundary(currentBoundary);
       m_state = State::AfterScrolling;
       m_duration = 0;

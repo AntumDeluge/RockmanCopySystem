@@ -1,7 +1,7 @@
 #include "map.h"
 #include "camera.h"
 #include "servicelocator.h"
-#include <cassert>
+#include <cstdio>
 #include <fstream>
 
 
@@ -21,17 +21,16 @@ Map::Map(const char* a_pMapName, IniDictionary& a_iniDictionary)
   , m_teleportStartYSpeed(0)
   , m_pBoundaries(0)
   , m_pTileSetBitmapAreas(0)
-  , m_pTileSetBitmap(0)
   , m_ppScreens(0)
 {
   const char* tileSheetFilename = a_iniDictionary.getCStringValue("tileSheet", a_pMapName, "empty");
   VideoService& videoService = ServiceLocator::getVideoService();
-  m_pTileSetBitmap = videoService.loadSurface(tileSheetFilename);
-  assert(m_pTileSetBitmap != 0);
+  videoService.loadBitmap(m_tileSetBitmap, tileSheetFilename);
   const char* mapFilename = a_iniDictionary.getCStringValue("tileMap", a_pMapName, "empty");
   std::ifstream map(mapFilename, std::ifstream::binary);
-  printf("Map::load: mapFilename: %s\n", mapFilename);
-  assert(map.fail() == false);
+#ifdef DEBUG
+  std::printf("Map::load: mapFilename: %s\n", mapFilename);
+#endif
   int nTilesWide = map.get();
   int nTilesHigh = map.get();
   m_nTileSetBitmapAreas = map.get();
@@ -41,7 +40,7 @@ Map::Map(const char* a_pMapName, IniDictionary& a_iniDictionary)
   m_nTiles = nTilesWide * nTilesHigh;
   m_width = nTilesWide * Tile::kWidth;
   m_height = nTilesHigh * Tile::kHeight;
-  m_pTileSetBitmapAreas = new SDL_Rect[m_nTileSetBitmapAreas];
+  m_pTileSetBitmapAreas = new Rect[m_nTileSetBitmapAreas];
   for (int iTileSetBitmapArea = 0; iTileSetBitmapArea < m_nTileSetBitmapAreas; iTileSetBitmapArea++) {
     m_pTileSetBitmapAreas[iTileSetBitmapArea].x = 0;
     m_pTileSetBitmapAreas[iTileSetBitmapArea].y = iTileSetBitmapArea * Tile::kHeight;
@@ -91,10 +90,10 @@ Map::Map(const char* a_pMapName, IniDictionary& a_iniDictionary)
   }
   map.close();
   m_nBoundaries = a_iniDictionary.getIntValue("boundaries", a_pMapName, 0);
-  m_pBoundaries = new SDL_Rect[m_nBoundaries];
+  m_pBoundaries = new Rect[m_nBoundaries];
   for (int iBoundary = 0; iBoundary < m_nBoundaries; iBoundary++) {
     char indexString[2];
-    sprintf(indexString, "%d", iBoundary);
+    std::sprintf(indexString, "%d", iBoundary);
     std::string xKey("boundary");
     xKey += indexString;
     std::string yKey(xKey);
@@ -102,7 +101,7 @@ Map::Map(const char* a_pMapName, IniDictionary& a_iniDictionary)
     xKey += "x";
     yKey += "y";
     wKey += "w";
-    SDL_Rect boundary;
+    Rect boundary;
     boundary.x = a_iniDictionary.getIntValue(xKey.c_str(), a_pMapName, 0);
     boundary.y = a_iniDictionary.getIntValue(yKey.c_str(), a_pMapName, 0);
     boundary.w = a_iniDictionary.getIntValue(wKey.c_str(), a_pMapName, 0);
@@ -124,17 +123,17 @@ Map::~Map() {
   delete [] m_ppScreens;
   delete [] m_pTileSetBitmapAreas;
   VideoService& videoService = ServiceLocator::getVideoService();
-  videoService.unloadSurface(m_pTileSetBitmap);
+  videoService.unloadBitmap(m_tileSetBitmap);
 }
 
 void Map::draw(Camera& a_camera) {
   VideoService& videoService = ServiceLocator::getVideoService();
-  const SDL_Rect& cameraAngleOfView = a_camera.getAngleOfView();
+  const Rect& cameraAngleOfView = a_camera.getAngleOfView();
   int screen = cameraAngleOfView.y / kScreenHeight * m_nScreensHorizontal + cameraAngleOfView.x / kScreenWidth;
   for (int iTile = 0; iTile < knTilesPerRowInScreen * knTilesPerColumnInScreen; iTile++) {
     int x = a_camera.getScreenMappedXCoordinate(m_ppScreens[screen][iTile].x);
     int y = a_camera.getScreenMappedYCoordinate(m_ppScreens[screen][iTile].y);
-    videoService.blitToScreen(m_pTileSetBitmap, x, y, &m_pTileSetBitmapAreas[m_ppScreens[screen][iTile].bitmapAreaId]);
+    videoService.copyToScreen(m_tileSetBitmap, x, y, &m_pTileSetBitmapAreas[m_ppScreens[screen][iTile].bitmapAreaId]);
   }
   // Check if the camera is positioned on two horizontal screens at once.
   int secondScreenViewableX = cameraAngleOfView.x % kScreenWidth;
@@ -143,7 +142,7 @@ void Map::draw(Camera& a_camera) {
     for (int iTile = 0; iTile < knTilesPerRowInScreen * knTilesPerColumnInScreen; iTile++) {
       int x = a_camera.getScreenMappedXCoordinate(m_ppScreens[screen][iTile].x);
       int y = a_camera.getScreenMappedYCoordinate(m_ppScreens[screen][iTile].y);
-      videoService.blitToScreen(m_pTileSetBitmap, x, y, &m_pTileSetBitmapAreas[m_ppScreens[screen][iTile].bitmapAreaId]);
+      videoService.copyToScreen(m_tileSetBitmap, x, y, &m_pTileSetBitmapAreas[m_ppScreens[screen][iTile].bitmapAreaId]);
     }
   }
   else {
@@ -154,13 +153,13 @@ void Map::draw(Camera& a_camera) {
       for (int iTile = 0; iTile < knTilesPerRowInScreen * knTilesPerColumnInScreen; iTile++) {
         int x = a_camera.getScreenMappedXCoordinate(m_ppScreens[screen][iTile].x);
         int y = a_camera.getScreenMappedYCoordinate(m_ppScreens[screen][iTile].y);
-        videoService.blitToScreen(m_pTileSetBitmap, x, y, &m_pTileSetBitmapAreas[m_ppScreens[screen][iTile].bitmapAreaId]);
+        videoService.copyToScreen(m_tileSetBitmap, x, y, &m_pTileSetBitmapAreas[m_ppScreens[screen][iTile].bitmapAreaId]);
       }
     }
   }
 }
 
-SDL_Rect Map::getCurrentBoundary() {
+Rect Map::getCurrentBoundary() {
   return m_pBoundaries[m_currentBoundaryIndex];
 }
 
@@ -209,7 +208,7 @@ FixedPoint8 Map::getTeleportStartPosY() {
   return y;
 }
 
-int Map::getMaxXDelta(SDL_Rect a_boundingBox, Direction::type a_direction) {
+int Map::getMaxXDelta(Rect a_boundingBox, Direction::type a_direction) {
   int maxXDelta = 0;
   int collisionX = 0;
   if (a_direction == Direction::Right) {
@@ -244,7 +243,7 @@ int Map::getMaxXDelta(SDL_Rect a_boundingBox, Direction::type a_direction) {
   return Tile::kWidth;
 }
 
-int Map::getMaxYDelta(SDL_Rect a_boundingBox, Direction::type a_direction) {
+int Map::getMaxYDelta(Rect a_boundingBox, Direction::type a_direction) {
   int maxYDelta = 0;
   int collisionY = 0;
   int currentY = a_boundingBox.y + a_boundingBox.h;
@@ -350,11 +349,11 @@ bool Map::isLeavingScreenTop(int a_y) {
 
 void Map::setCurrentBoundaryByPosition(int a_x, int a_y) {
 #ifdef DEBUG
-  printf("%s%i%c%i%c", "getBoundaryByPosition: ", a_x, 'x', a_y, '\n');
+  std::printf("%s%i%c%i%c", "getBoundaryByPosition: ", a_x, 'x', a_y, '\n');
 #endif
   for (int iBoundary = 0; iBoundary < m_nBoundaries; iBoundary++) {
 #ifdef DEBUG
-  printf("Boundary %i\n", iBoundary);
+  std::printf("Boundary %i\n", iBoundary);
 #endif
     if (a_x >= m_pBoundaries[iBoundary].x
         && a_x < m_pBoundaries[iBoundary].x + m_pBoundaries[iBoundary].w

@@ -1,12 +1,16 @@
 #include "rockman.h"
 #include "camera.h"
-#include "globals.h"
 #include "inidictionary.h"
 #include "level.h"
 #include "map.h"
 #include "servicelocator.h"
 #include "sprite.h"
+#ifdef DEBUG
+#  include <cstdio>
+#endif
 #include <string>
+const int Tile::kWidth;
+const int Tile::kHeight;
 
 
 Rockman::Rockman(IniDictionary& a_iniDictionary, Level* a_pLevel, Map* a_pMap)
@@ -20,8 +24,7 @@ Rockman::Rockman(IniDictionary& a_iniDictionary, Level* a_pLevel, Map* a_pMap)
   , m_xSpeedJumping(0)
   , m_xSpeedReeling(0)
   , m_xSpeedRunning(0)
-  , m_ySpeedClimbingDown(0)
-  , m_ySpeedClimbingUp(0)
+  , m_ySpeedClimbing(0)
   , m_ySpeedCollision(0)
   , m_ySpeedFalling(0)
   , m_ySpeedGravity(0)
@@ -61,6 +64,7 @@ Rockman::Rockman(IniDictionary& a_iniDictionary, Level* a_pLevel, Map* a_pMap)
   , m_durationDecelerating(0)
   , m_durationDeceleratingPreviousAnimation(0)
   , m_durationInvincible(0)
+  , m_durationLanding(0)
   , m_durationReeling(0)
   , m_durationShooting(0)
   , m_shootingDuration(0)
@@ -122,12 +126,9 @@ Rockman::Rockman(IniDictionary& a_iniDictionary, Level* a_pLevel, Map* a_pMap)
   xSpeedInt = a_iniDictionary.getIntValue("runningInt", "XSpeed", 0);
   xSpeedFraction = a_iniDictionary.getIntValue("runningFraction", "XSpeed", 0);
   m_xSpeedRunning = FixedPoint8(xSpeedInt, xSpeedFraction);
-  int ySpeedInt = a_iniDictionary.getIntValue("climbingDownInt", "YSpeed", 0);
-  int ySpeedFraction = a_iniDictionary.getIntValue("climbingDownFraction", "YSpeed", 0);
-  m_ySpeedClimbingDown = FixedPoint8(ySpeedInt, ySpeedFraction);
-  ySpeedInt = a_iniDictionary.getIntValue("climbingUpInt", "YSpeed", 0);
-  ySpeedFraction = a_iniDictionary.getIntValue("climbingUpFraction", "YSpeed", 0);
-  m_ySpeedClimbingUp = FixedPoint8(ySpeedInt, ySpeedFraction);
+  int ySpeedInt = a_iniDictionary.getIntValue("climbingInt", "YSpeed", 0);
+  int ySpeedFraction = a_iniDictionary.getIntValue("climbingFraction", "YSpeed", 0);
+  m_ySpeedClimbing = FixedPoint8(ySpeedInt, ySpeedFraction);
   ySpeedInt = a_iniDictionary.getIntValue("collisionInt", "YSpeed", 0);
   ySpeedFraction = a_iniDictionary.getIntValue("collisionFraction", "YSpeed", 0);
   m_ySpeedCollision = FixedPoint8(ySpeedInt, ySpeedFraction);
@@ -166,6 +167,7 @@ Rockman::Rockman(IniDictionary& a_iniDictionary, Level* a_pLevel, Map* a_pMap)
   m_durationDecelerating = a_iniDictionary.getIntValue("decelerating", "Durations", 0);
   m_durationDeceleratingPreviousAnimation = a_iniDictionary.getIntValue("deceleratingPreviousAnimation", "Durations", 0);
   m_durationInvincible = a_iniDictionary.getIntValue("invincible", "Durations", 0);
+  m_durationLanding = a_iniDictionary.getIntValue("landing", "Durations", 0);
   m_durationReeling = a_iniDictionary.getIntValue("reeling", "Durations", 0);
   m_durationShooting = a_iniDictionary.getIntValue("shooting", "Durations", 0);
   m_boundingBoxHeightHalf = a_iniDictionary.getIntValue("heightHalf", "BoundingBox", 0);
@@ -177,7 +179,7 @@ Rockman::Rockman(IniDictionary& a_iniDictionary, Level* a_pLevel, Map* a_pMap)
   m_boundingBox.h = a_iniDictionary.getIntValue("height", "BoundingBox", 0);
   const char* pBulletBitmapFilename = a_iniDictionary.getCStringValue("spritesheet", "Bullet", "empty");
   VideoService& videoService = ServiceLocator::getVideoService();
-  m_pBulletBitmap = videoService.loadSurface(pBulletBitmapFilename);
+  videoService.loadBitmap(m_bulletBitmap, pBulletBitmapFilename);
   m_bulletXOffsetLeft = a_iniDictionary.getIntValue("xOffsetLeft", "Bullet", 0);
   m_bulletXOffsetRight = a_iniDictionary.getIntValue("xOffsetRight", "Bullet", 0);
   m_bulletYOffset = a_iniDictionary.getIntValue("yOffset", "Bullet", 0);
@@ -185,7 +187,7 @@ Rockman::Rockman(IniDictionary& a_iniDictionary, Level* a_pLevel, Map* a_pMap)
 
 Rockman::~Rockman() {
   VideoService& videoService = ServiceLocator::getVideoService();
-  videoService.unloadSurface(m_pBulletBitmap);
+  videoService.unloadBitmap(m_bulletBitmap);
   delete m_pSprite;
 }
 
@@ -218,13 +220,13 @@ void Rockman::draw(Camera& a_camera) {
     m_pSprite->draw(x, y, spriteBitmap);
   }
   for (int iBullet = 0; iBullet < kMaximumSimultaneousBullets; iBullet++) {
-    m_bullets[iBullet].draw(m_pBulletBitmap, a_camera);
+    m_bullets[iBullet].draw(m_bulletBitmap, a_camera);
   }
   int ladderSonarInt = m_ladderSonar.getAsInt();
   m_debugInfo.draw(m_x.get(), m_y.get(), m_xSpeed.get(), m_ySpeed.get(), ladderSonarInt);
 }
 
-const SDL_Rect& Rockman::getBoundingBox() {
+const Rect& Rockman::getBoundingBox() {
   return m_boundingBox;
 }
 
@@ -246,7 +248,7 @@ bool Rockman::isDestroyed() {
 
 void Rockman::onScrollingStart() {
 #ifdef DEBUG
-  printf("onScrolling\n");
+  std::printf("onScrolling\n");
 #endif
   m_scrolling = true;
   if (m_resetFractionAtScrollStart) {
@@ -271,10 +273,10 @@ void Rockman::onScrollingStart() {
 
 void Rockman::onScrollingStop() {
 #ifdef DEBUG
-  printf("onScrollingStop\n");
+  std::printf("onScrollingStop\n");
 #endif
   m_scrolling = false;
-  SDL_Rect mapBoundary = m_pMap->getCurrentBoundary();
+  Rect mapBoundary = m_pMap->getCurrentBoundary();
   if (m_adjustPositionAfterScroll) {
     if (m_ySpeed > FixedPoint8(0)) {
       m_y = mapBoundary.y + m_scrollUpEndPosY;
@@ -288,7 +290,7 @@ void Rockman::onScrollingStop() {
 void Rockman::receiveDamage() {
   if (m_invincibleDurationLeft == 0) {
 #ifdef DEBUG
-    printf("Rockman was damaged!\n");
+    std::printf("Rockman was damaged!\n");
 #endif
     m_invincibleDurationLeft = m_durationInvincible;
     m_nextStateEventHandler = &Rockman::onReeling;
@@ -313,7 +315,6 @@ void Rockman::reset() {
 }
 
 void Rockman::update(Controls a_controls, Camera& a_camera) {
-  m_pSprite->update();
   if (m_scrolling) {
     scrollingStateHandler();
     return;
@@ -380,6 +381,7 @@ void Rockman::update(Controls a_controls, Camera& a_camera) {
   if (m_shooting) {
     m_shootingDuration++;
   }
+  m_pSprite->update();
   m_stateChanged = false;
 }
 
@@ -464,13 +466,26 @@ void Rockman::jumpingStateHandler(Controls a_buttons) {
   }
 }
 
+void Rockman::landingStateHandler(Controls a_buttons) {
+#ifdef DEBUG
+  std::printf("landingStateHandler\n");
+#endif
+  if (a_buttons.horizontalDirection != Direction::None) {
+    m_direction = a_buttons.horizontalDirection;
+    onAccelerating();
+  }
+  else if (m_duration == m_durationLanding) {
+    onStanding();
+  }
+}
+
 void Rockman::climbingStateHandler(Controls a_buttons) {
 #ifdef DEBUG
-  printf("climbingStateHandler\n");
+  std::printf("climbingStateHandler\n");
 #endif
   if (a_buttons.verticalDirection != Direction::None) {
     if (a_buttons.verticalDirection == Direction::Up) {
-      m_ySpeed = m_ySpeedClimbingUp;
+      m_ySpeed = m_ySpeedClimbing;
       if (m_ladderSonar.atHeadTop) {
         m_pSprite->setCurrentAnimationIndex(AnimationType::Climbing);
       }
@@ -480,7 +495,7 @@ void Rockman::climbingStateHandler(Controls a_buttons) {
       m_currentYCollisionResponse = YCollisionResponse::Stop;
     }
     else if (a_buttons.verticalDirection == Direction::Down) {
-      m_ySpeed = m_ySpeedClimbingDown;
+      m_ySpeed = -m_ySpeedClimbing;
       if (m_ladderSonar.behindEyes || m_ladderSonar.atHeadTop) {
         m_pSprite->setCurrentAnimationIndex(AnimationType::Climbing);
       }
@@ -568,7 +583,7 @@ void Rockman::shootingStateHandler(Controls a_buttons, Camera& a_camera) {
 void Rockman::reelingStateHandler(Controls a_buttons) {
   if (m_duration == m_durationReeling) {
 #ifdef DEBUG
-    printf("Exiting reeling state\n");
+    std::printf("Exiting reeling state\n");
 #endif
     reverseHorizontalDirection();
     onStanding();
@@ -593,7 +608,7 @@ void Rockman::transformingStateHandler(Controls a_buttons) {
 
 void Rockman::onStanding() {
 #ifdef DEBUG
-  printf("onStanding\n");
+  std::printf("onStanding\n");
 #endif
   m_xSpeed = 0;
   m_duration = 0;
@@ -646,7 +661,7 @@ void Rockman::onRunning() {
 
 void Rockman::onJumping(bool a_setAnimation) {
 #ifdef DEBUG
-  printf("onJumping\n");
+  std::printf("onJumping\n");
 #endif
   m_ySpeed = m_ySpeedJumping;
   m_duration = 0;
@@ -661,7 +676,7 @@ void Rockman::onJumping(bool a_setAnimation) {
 
 void Rockman::onFalling(bool a_afterCollisionHandling) {
 #ifdef DEBUG
-  printf("onFalling\n");
+  std::printf("onFalling\n");
 #endif
   m_ySpeed = m_ySpeedFalling;
   if (a_afterCollisionHandling) {
@@ -676,9 +691,22 @@ void Rockman::onFalling(bool a_afterCollisionHandling) {
   m_stateChanged = true;
 }
 
+void Rockman::onLanding() {
+#ifdef DEBUG
+  std::printf("onLanding\n");
+#endif
+  m_xSpeed = 0;
+  m_duration = 0;
+  m_pSprite->setCurrentAnimationIndex(AnimationType::Landing);
+  m_currentStateHandler = &Rockman::landingStateHandler;
+  m_currentYCollisionResponse = YCollisionResponse::Land;
+  m_movementType = MovementType::Grounded;
+  m_stateChanged = true;
+}
+
 void Rockman::onClimbing() {
 #ifdef DEBUG
-  printf("onClimbing\n");
+  std::printf("onClimbing\n");
 #endif
   m_duration = 0;
   if (m_ladderSonar.atHeadTop) {
@@ -694,7 +722,7 @@ void Rockman::onClimbing() {
 
 void Rockman::onReeling() {
 #ifdef DEBUG
-  printf("onReeling\n");
+  std::printf("onReeling\n");
 #endif
   m_xSpeed = m_xSpeedReeling;
   m_ySpeed = m_ySpeedReeling;
@@ -708,13 +736,13 @@ void Rockman::onReeling() {
 
 void Rockman::onTransforming() {
 #ifdef DEBUG
-  printf("onTransforming\n");
+  std::printf("onTransforming\n");
 #endif
   m_duration = 0;
   m_pSprite->setCurrentAnimationIndex(AnimationType::Transforming);
   m_currentStateHandler = &Rockman::transformingStateHandler;
   m_currentYCollisionResponse = YCollisionResponse::Land;
-  m_movementType = MovementType::Airborne;
+  m_movementType = MovementType::Transforming;
   m_stateChanged = true;
 }
 
@@ -909,6 +937,9 @@ bool Rockman::handleYCollision(Controls a_buttons) {
             && a_buttons.horizontalDirection != Direction::None
             && a_buttons.horizontalDirection == m_direction) {
           onRunning();
+        }
+        else if (m_movementType != MovementType::Transforming) {
+          onLanding();
         }
         else {
           onStanding();

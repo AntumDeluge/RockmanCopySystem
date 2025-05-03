@@ -29,12 +29,12 @@ void Bullet::deactivate() {
   m_active = false;
 }
 
-void Bullet::draw(SDL_Surface* a_pBitmap, Camera& a_camera) {
+void Bullet::draw(Bitmap& a_bitmap, Camera& a_camera) {
   if (m_active) {
     int x = a_camera.getScreenMappedXCoordinate(m_boundingBox.x);
     int y = a_camera.getScreenMappedYCoordinate(m_boundingBox.y);
     VideoService& videoService = ServiceLocator::getVideoService();
-    videoService.blitToScreen(a_pBitmap, x, y);
+    videoService.copyToScreen(a_bitmap, x, y);
   }
 }
 

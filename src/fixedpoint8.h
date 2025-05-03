@@ -1,11 +1,16 @@
 #ifndef FIXEDPOINT8
 #define FIXEDPOINT8
 
+#include <cstdio>
+
 class FixedPoint8 {
   private:
   int m_value;
 
   public:
+  inline FixedPoint8() {
+    m_value = 0;
+  };
   inline FixedPoint8(int a_integer, int a_fraction) {
     m_value = a_integer * 256 + a_fraction;
   };
@@ -18,12 +23,12 @@ class FixedPoint8 {
 
   // operator +
   inline FixedPoint8 operator+(const FixedPoint8& a_fixedPoint8) {
-    FixedPoint8 fixedPoint8(0);
+    FixedPoint8 fixedPoint8;
     fixedPoint8.m_value = m_value + a_fixedPoint8.m_value;
     return fixedPoint8;
   };
   inline FixedPoint8 operator+(const int& a_int) {
-    FixedPoint8 fixedPoint8(0);
+    FixedPoint8 fixedPoint8;
     fixedPoint8.m_value = m_value + (a_int * 256);
     return fixedPoint8;
   };
@@ -35,13 +40,18 @@ class FixedPoint8 {
   };
 
   // operator -
+  inline FixedPoint8 operator-() {
+    FixedPoint8 fixedPoint8;
+    fixedPoint8.m_value = -m_value;
+    return fixedPoint8;
+  };
   inline FixedPoint8 operator-(const FixedPoint8& a_fixedPoint8) {
-    FixedPoint8 fixedPoint8(0);
+    FixedPoint8 fixedPoint8;
     fixedPoint8.m_value = m_value - a_fixedPoint8.m_value;
     return fixedPoint8;
   };
   inline FixedPoint8 operator-(const int& a_int) {
-    FixedPoint8 fixedPoint8(0);
+    FixedPoint8 fixedPoint8;
     fixedPoint8.m_value = m_value - (a_int * 256);
     return fixedPoint8;
   };
@@ -94,7 +104,7 @@ class FixedPoint8 {
 
   // debug
   inline void print() {
-    printf("%d,%d (%d)", m_value / 256, m_value & 0x00FF, m_value);
+    std::printf("%d,%d (%d)", m_value / 256, m_value & 0x00FF, m_value);
   };
   inline int get() {
     return m_value;

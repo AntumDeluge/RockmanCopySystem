@@ -14,7 +14,7 @@ MenuItem::MenuItem(const char* a_pCaption, const char* a_pValue, int a_x, int a_
 {}
 
 void MenuItem::draw(Font& a_font) {
-  a_font.drawText(m_caption, m_x, m_y);
+  a_font.drawTextOnScreen(m_caption, m_x, m_y);
 }
 
 std::string MenuItem::getValue() {

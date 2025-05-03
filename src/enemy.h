@@ -1,8 +1,8 @@
 #ifndef ENEMY_H
 #define ENEMY_H
 
-#include "SDL.h"
 #include "collider.h"
+#include "rect.h"
 
 class Camera;
 class Rockman;
@@ -10,7 +10,7 @@ class Sprite;
 
 class Enemy {
   private:
-  SDL_Rect m_boundingBox;
+  Rect m_boundingBox;
   Collider m_collider;
   Sprite* m_pSprite;
 

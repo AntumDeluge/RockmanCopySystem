@@ -1,7 +1,9 @@
 #include "sprite.h"
-#include "SDL.h"
 #include "animation.h"
+#include "bitmap.h"
+#include "rect.h"
 #include "servicelocator.h"
+#include <cstdio>
 #include <string>
 
 
@@ -14,29 +16,29 @@ Sprite::Sprite(IniDictionary& a_iniDictionary)
   , m_nBitmaps(0)
   , m_pAnimations(0)
   , m_currentAnimationOrderHandler(&Sprite::animateForward)
-  , m_ppBitmaps(0)
+  , m_pBitmaps(0)
   , m_pBitmapAreas(0)
 {
   m_nBitmaps = a_iniDictionary.getIntValue("amount", "Spritesheets", 0);
-  m_ppBitmaps = new SDL_Surface*[m_nBitmaps];
+  m_pBitmaps = new Bitmap[m_nBitmaps];
   VideoService& videoService = ServiceLocator::getVideoService();
   for (int iBitmap = 0; iBitmap < m_nBitmaps; iBitmap++) {
     char indexString[3];
-    sprintf(indexString, "%d", iBitmap);
+    std::sprintf(indexString, "%d", iBitmap);
     std::string key("spritesheet");
     key += indexString;
     std::string sheetFilename = a_iniDictionary.getCStringValue(key.c_str(), "Spritesheets", "empty");
-    m_ppBitmaps[iBitmap] = videoService.loadSurface(sheetFilename.c_str());
+    videoService.loadBitmap(m_pBitmaps[iBitmap], sheetFilename.c_str());
   }
   int nBitmapAreas = a_iniDictionary.getIntValue("amount", "Sprites", 0);
-  m_pBitmapAreas = new SDL_Rect[nBitmapAreas];
+  m_pBitmapAreas = new Rect[nBitmapAreas];
   int width = a_iniDictionary.getIntValue("width", "Sprites", 0);
   int height = a_iniDictionary.getIntValue("height", "Sprites", 0);
   m_xOffset = a_iniDictionary.getIntValue("xOffset", "Sprites", 0);
   m_yOffset = a_iniDictionary.getIntValue("yOffset", "Sprites", 0);
   for (int iBitmapArea = 0; iBitmapArea < nBitmapAreas; iBitmapArea++) {
     char indexString[3];
-    sprintf(indexString, "%d", iBitmapArea);
+    std::sprintf(indexString, "%d", iBitmapArea);
     std::string key("sprite");
     key += indexString;
     key += "YPos";
@@ -49,7 +51,7 @@ Sprite::Sprite(IniDictionary& a_iniDictionary)
   m_pAnimations = new Animation[m_nAnimations];
   for (int iAnimation = 0; iAnimation < m_nAnimations; iAnimation++) {
     char iAnimationString[3];
-    sprintf(iAnimationString, "%d", iAnimation);
+    std::sprintf(iAnimationString, "%d", iAnimation);
     std::string sectionName("Animation");
     sectionName += iAnimationString;
     int nFrames = a_iniDictionary.getIntValue("nFrames", sectionName.c_str(), 0);
@@ -57,7 +59,7 @@ Sprite::Sprite(IniDictionary& a_iniDictionary)
     m_pAnimations[iAnimation].pFrames = new AnimationFrame[nFrames];
     for (int iFrame = 0; iFrame < nFrames; iFrame++) {
       char iFrameString[3];
-      sprintf(iFrameString, "%d", iFrame);
+      std::sprintf(iFrameString, "%d", iFrame);
       std::string spriteIndexKey("frame");
       spriteIndexKey += iFrameString;
       std::string durationKey(spriteIndexKey);
@@ -77,9 +79,9 @@ Sprite::~Sprite() {
   delete [] m_pBitmapAreas;
   VideoService& videoService = ServiceLocator::getVideoService();
   for (int iBitmap = 0; iBitmap < m_nBitmaps; iBitmap++) {
-    videoService.unloadSurface(m_ppBitmaps[iBitmap]);
+    videoService.unloadBitmap(m_pBitmaps[iBitmap]);
   }
-  delete [] m_ppBitmaps;
+  delete [] m_pBitmaps;
 }
 
 void Sprite::animateForward() {
@@ -115,7 +117,7 @@ void Sprite::draw(int a_x, int a_y, int a_iBitmap) {
   a_y += m_yOffset;
   int iBitmapArea = m_pAnimations[m_iCurrentAnimation].pFrames[m_iCurrentFrame].index;
   VideoService& videoService = ServiceLocator::getVideoService();
-  videoService.blitToScreen(m_ppBitmaps[a_iBitmap], a_x, a_y, &m_pBitmapAreas[iBitmapArea]);
+  videoService.copyToScreen(m_pBitmaps[a_iBitmap], a_x, a_y, &m_pBitmapAreas[iBitmapArea]);
 }
 
 void Sprite::resetCurrentAnimationFrameDuration() {

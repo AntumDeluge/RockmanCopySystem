@@ -9,7 +9,7 @@ Camera::Camera()
   m_angleOfView.h = kHeight;
 }
 
-const SDL_Rect& Camera::getAngleOfView() {
+const Rect& Camera::getAngleOfView() {
   return m_angleOfView;
 }
 
@@ -23,7 +23,7 @@ int Camera::getScreenMappedYCoordinate(int a_y) {
   return screenMappedYCoordinate;
 }
 
-bool Camera::isViewingSubject(SDL_Rect* a_pSubjectBox) {
+bool Camera::isViewingSubject(Rect* a_pSubjectBox) {
   int leftBoxA = m_angleOfView.x;
   int rightBoxA = m_angleOfView.x + m_angleOfView.w;
   int topBoxA = m_angleOfView.y;
@@ -52,14 +52,14 @@ void Camera::move(int a_xOffset, int a_yOffset) {
   m_angleOfView.y += a_yOffset;
 }
 
-void Camera::setCurrentBoundary(SDL_Rect a_boundary) {
+void Camera::setCurrentBoundary(Rect a_boundary) {
   m_currentBoundary = a_boundary;
   // necessary in case the boundary change is
   // not a result of scrolling
   m_angleOfView.y = m_currentBoundary.y;
 }
 
-void Camera::update(const SDL_Rect& a_centeringBox) {
+void Camera::update(const Rect& a_centeringBox) {
   int x = a_centeringBox.x + (a_centeringBox.w / 2) - (kWidth / 2);
   int maxX = m_currentBoundary.x + m_currentBoundary.w - kWidth;
   if (x < m_currentBoundary.x) {

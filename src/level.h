@@ -1,6 +1,7 @@
 #ifndef LEVEL_H
 #define LEVEL_H
 
+#include "bitmap.h"
 #include "camera.h"
 #include "controls.h"
 #include "gamestate.h"
@@ -9,7 +10,6 @@ class Enemy;
 class GameStateManager;
 class Map;
 class Rockman;
-struct SDL_Surface;
 
 class Level : public GameState {
   private:
@@ -33,14 +33,15 @@ class Level : public GameState {
   int m_beforeScrollDuration;
   int m_afterScrollDuration;
   int m_verticalScrollSpeed;
+  int m_readyMessageWidth;
   Direction::type m_scrollDirection;
   State::type m_state;
+  Bitmap m_readyBitmap;
   Camera m_camera;
   Enemy* m_pEnemy;
   GameStateManager* m_pGameStateManager;
   Map* m_pMap;
   Rockman* m_pRockman;
-  SDL_Surface* m_pReadyBitmap;
 
   public:
   Level(GameStateManager* a_pGameStateManager);

@@ -1,5 +1,6 @@
 #include "gameengine.h"
 #include "inidictionary.h"
+#include "rect.h"
 #include <cstring>
 
 
@@ -11,21 +12,12 @@ GameEngine::GameEngine()
 #ifdef PSP
   , m_pJoystick(0)
 #endif
-  , m_pScreen(0) {
-#ifdef WIN32
-  SDL_putenv("SDL_VIDEODRIVER=directx");
-#endif
-#ifndef PSP
-  SDL_Init(SDL_INIT_TIMER | SDL_INIT_VIDEO);
-  SDL_EventState(SDL_MOUSEMOTION, SDL_IGNORE);
-  SDL_EventState(SDL_MOUSEBUTTONDOWN, SDL_IGNORE);
-  SDL_EventState(SDL_MOUSEBUTTONUP, SDL_IGNORE);
-  SDL_WM_SetCaption("Rockman Copy System", 0);
+#ifndef SDL2
+  , m_pScreen(0)
 #else
-  SDL_Init(SDL_INIT_TIMER | SDL_INIT_VIDEO | SDL_INIT_JOYSTICK);
-  SDL_JoystickEventState(SDL_ENABLE);
-  m_pJoystick = SDL_JoystickOpen(0);
+  , m_pRenderer(0)
 #endif
+{
   m_buttons.horizontalDirection = Direction::None;
   m_buttons.verticalDirection = Direction::None;
   m_buttons.previousHorizontalDirection = Direction::None;
@@ -40,13 +32,31 @@ GameEngine::GameEngine()
   m_buttons.jumpPressed = false;
   m_buttons.jumpDown = false;
   m_buttons.jumpReleased = false;
+#if defined(WIN32) && !defined(SDL2)
+  SDL_putenv("SDL_VIDEODRIVER=directx");
+#endif
 #ifndef PSP
+  SDL_Init(SDL_INIT_TIMER | SDL_INIT_VIDEO);
+  SDL_EventState(SDL_MOUSEMOTION, SDL_IGNORE);
+  SDL_EventState(SDL_MOUSEBUTTONDOWN, SDL_IGNORE);
+  SDL_EventState(SDL_MOUSEBUTTONUP, SDL_IGNORE);
+#  ifndef SDL2
+  SDL_WM_SetCaption("Rockman Copy System", 0);
+#  endif
   IniDictionary settings("settings.ini");
   m_pixelMultiplier = settings.getIntValue("pixelMultiplier", "Video", 1);
   int multipliedScreenWidth = kScreenWidth * m_pixelMultiplier;
   int multipliedScreenHeight = kScreenHeight * m_pixelMultiplier;
+#  ifndef SDL2
   m_pScreen = SDL_SetVideoMode(multipliedScreenWidth, multipliedScreenHeight, 0, SDL_SWSURFACE);
+#  else
+  SDL_Window* window = SDL_CreateWindow("Rockman Copy System", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, multipliedScreenWidth, multipliedScreenHeight, SDL_WINDOW_SHOWN);
+  m_pRenderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_TARGETTEXTURE);
+#  endif
 #else
+  SDL_Init(SDL_INIT_TIMER | SDL_INIT_VIDEO | SDL_INIT_JOYSTICK);
+  SDL_JoystickEventState(SDL_ENABLE);
+  m_pJoystick = SDL_JoystickOpen(0);
   m_pScreen = SDL_SetVideoMode(kScreenWidth, kScreenHeight, 0, SDL_HWSURFACE | SDL_DOUBLEBUF);
 #endif
 }
@@ -82,60 +92,100 @@ bool GameEngine::areColliding(SDL_Rect* a_pBoxA, SDL_Rect* a_pBoxB) {
   return true;
 }
 
-void GameEngine::blitToScreen(SDL_Surface* a_pSourceBitmap, int a_x, int a_y, SDL_Rect* a_pSourceBitmapArea) {
-  a_x *= m_pixelMultiplier;
-  a_y *= m_pixelMultiplier;
-  SDL_Rect* pSourceBitmapArea = a_pSourceBitmapArea;
-#ifndef PSP
-  SDL_Rect multipliedSourceBitmapArea;
-  if (a_pSourceBitmapArea != 0) {
-    multipliedSourceBitmapArea.x = a_pSourceBitmapArea->x * m_pixelMultiplier;
-    multipliedSourceBitmapArea.y = a_pSourceBitmapArea->y * m_pixelMultiplier;
-    multipliedSourceBitmapArea.w = a_pSourceBitmapArea->w * m_pixelMultiplier;
-    multipliedSourceBitmapArea.h = a_pSourceBitmapArea->h * m_pixelMultiplier;
-    pSourceBitmapArea = &multipliedSourceBitmapArea;
-  }
-#endif
-  SDL_Rect destinationRect = {a_x, a_y, 0, 0};
-  SDL_BlitSurface(a_pSourceBitmap, pSourceBitmapArea, m_pScreen, &destinationRect);
-}
-
-void GameEngine::blitToSurface(SDL_Surface* a_pSourceBitmap, SDL_Surface* a_pDestinationBitmap, int a_destinationX, int a_destinationY, SDL_Rect* a_pSourceBitmapArea) {
+void GameEngine::copyToBitmap(Bitmap& a_sourceBitmap, Bitmap& a_destinationBitmap, int a_destinationX, int a_destinationY, Rect* a_pSourceBitmapArea) {
   a_destinationX *= m_pixelMultiplier;
   a_destinationY *= m_pixelMultiplier;
-  SDL_Rect* pSourceBitmapArea = a_pSourceBitmapArea;
-#ifndef PSP
-  SDL_Rect multipliedSourceBitmapArea;
+  SDL_Rect sourceRect = {0, 0, a_sourceBitmap.width, a_sourceBitmap.height};
   if (a_pSourceBitmapArea != 0) {
-    multipliedSourceBitmapArea.x = a_pSourceBitmapArea->x * m_pixelMultiplier;
-    multipliedSourceBitmapArea.y = a_pSourceBitmapArea->y * m_pixelMultiplier;
-    multipliedSourceBitmapArea.w = a_pSourceBitmapArea->w * m_pixelMultiplier;
-    multipliedSourceBitmapArea.h = a_pSourceBitmapArea->h * m_pixelMultiplier;
-    pSourceBitmapArea = &multipliedSourceBitmapArea;
-  }
+#ifndef PSP
+    sourceRect.x = a_pSourceBitmapArea->x * m_pixelMultiplier;
+    sourceRect.y = a_pSourceBitmapArea->y * m_pixelMultiplier;
+    sourceRect.w = a_pSourceBitmapArea->w * m_pixelMultiplier;
+    sourceRect.h = a_pSourceBitmapArea->h * m_pixelMultiplier;
+#else
+    sourceRect.x = a_pSourceBitmapArea->x;
+    sourceRect.y = a_pSourceBitmapArea->y;
+    sourceRect.w = a_pSourceBitmapArea->w;
+    sourceRect.h = a_pSourceBitmapArea->h;
 #endif
-  SDL_Rect destinationRect = {a_destinationX, a_destinationY, 0, 0};
-  SDL_BlitSurface(a_pSourceBitmap, pSourceBitmapArea, a_pDestinationBitmap, &destinationRect);
+  }
+  SDL_Rect destinationRect = {a_destinationX, a_destinationY, sourceRect.w, sourceRect.h};
+#ifndef SDL2
+  SDL_BlitSurface(a_sourceBitmap.pInternalObject, &sourceRect, a_destinationBitmap.pInternalObject, &destinationRect);
+#else
+  SDL_SetRenderTarget(m_pRenderer, a_destinationBitmap.pInternalObject);
+  SDL_RenderCopy(m_pRenderer, a_sourceBitmap.pInternalObject, &sourceRect, &destinationRect);
+  SDL_SetRenderTarget(m_pRenderer, 0);
+#endif
+}
+
+void GameEngine::copyToScreen(Bitmap& a_sourceBitmap, int a_x, int a_y, Rect* a_pSourceBitmapArea) {
+  a_x *= m_pixelMultiplier;
+  a_y *= m_pixelMultiplier;
+  SDL_Rect sourceRect = {0, 0, a_sourceBitmap.width, a_sourceBitmap.height};
+  if (a_pSourceBitmapArea != 0) {
+#ifndef PSP
+    sourceRect.x = a_pSourceBitmapArea->x * m_pixelMultiplier;
+    sourceRect.y = a_pSourceBitmapArea->y * m_pixelMultiplier;
+    sourceRect.w = a_pSourceBitmapArea->w * m_pixelMultiplier;
+    sourceRect.h = a_pSourceBitmapArea->h * m_pixelMultiplier;
+#else
+    sourceRect.x = a_pSourceBitmapArea->x;
+    sourceRect.y = a_pSourceBitmapArea->y;
+    sourceRect.w = a_pSourceBitmapArea->w;
+    sourceRect.h = a_pSourceBitmapArea->h;
+#endif
+  }
+  SDL_Rect destinationRect = {a_x, a_y, sourceRect.w, sourceRect.h};
+#ifndef SDL2
+  SDL_BlitSurface(a_sourceBitmap.pInternalObject, &sourceRect, m_pScreen, &destinationRect);
+#else
+  SDL_RenderCopy(m_pRenderer, a_sourceBitmap.pInternalObject, &sourceRect, &destinationRect);
+#endif
 }
 
 void GameEngine::clearScreen() {
+#ifndef SDL2
   Uint32 black = SDL_MapRGB(m_pScreen->format, 0, 0, 0);
   SDL_FillRect(m_pScreen, 0, black);
+#else
+  SDL_SetRenderDrawColor(m_pRenderer, 0, 0, 0, 255);
+  SDL_RenderClear(m_pRenderer);
+#endif
 }
 
-SDL_Surface* GameEngine::createSurface(int a_width, int a_height) {
+void GameEngine::createBitmap(Bitmap& a_bitmap, int a_width, int a_height) {
+#ifndef PSP
   a_width *= m_pixelMultiplier;
   a_height *= m_pixelMultiplier;
+#endif
+#ifndef SDL2
   SDL_PixelFormat* pPixelFormat = m_pScreen->format;
   SDL_Surface* pNewSurface = SDL_CreateRGBSurface(0, a_width, a_height, pPixelFormat->BitsPerPixel, pPixelFormat->Rmask, pPixelFormat->Gmask, pPixelFormat->Bmask, pPixelFormat->Amask);
   Uint32 colorKey = SDL_MapRGB(pNewSurface->format, 0xFF, 0x80, 0xFF);
   SDL_FillRect(pNewSurface, 0, colorKey);
   SDL_SetColorKey(pNewSurface, SDL_SRCCOLORKEY, colorKey);
-  return pNewSurface;
+  a_bitmap.pInternalObject = pNewSurface;
+#else
+  SDL_Texture* pNewTexture = SDL_CreateTexture(m_pRenderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, a_width, a_height);
+  SDL_SetTextureBlendMode(pNewTexture, SDL_BLENDMODE_BLEND);
+  SDL_SetRenderTarget(m_pRenderer, pNewTexture);
+  SDL_SetRenderDrawColor(m_pRenderer, 0, 0, 0, 0);
+  SDL_RenderClear(m_pRenderer);
+  SDL_SetRenderTarget(m_pRenderer, 0);
+  a_bitmap.pInternalObject = pNewTexture;
+#endif
+  a_bitmap.width = a_width;
+  a_bitmap.height = a_height;
 }
 
 int GameEngine::flipScreen() {
+#ifndef SDL2
   return SDL_Flip(m_pScreen);
+#else
+  SDL_RenderPresent(m_pRenderer);
+  return 0;
+#endif
 }
 
 void GameEngine::handleEvents() {
@@ -313,21 +363,35 @@ void GameEngine::handleEvents() {
   }
 }
 
-SDL_Surface* GameEngine::loadSurface(const char* a_pFilename) {
+void GameEngine::loadBitmap(Bitmap& a_bitmap, const char* a_pFilename) {
   SDL_Surface* pLoadedSurface = SDL_LoadBMP(a_pFilename);
   Uint32 colorKey = SDL_MapRGB(pLoadedSurface->format, 0xFF, 0x80, 0xFF);
+#ifndef SDL2
   SDL_SetColorKey(pLoadedSurface, SDL_SRCCOLORKEY, colorKey);
-#ifndef PSP
-  SDL_Surface* pOptimisedSurface = SDL_DisplayFormat(pLoadedSurface);
 #else
-  SDL_Surface* pOptimisedSurface = SDL_DisplayFormatAlpha(pLoadedSurface);
+  SDL_SetColorKey(pLoadedSurface, SDL_TRUE, colorKey);
 #endif
+#ifndef SDL2
+#  ifndef PSP
+  SDL_Surface* pOptimisedSurface = SDL_DisplayFormat(pLoadedSurface);
+#  else
+  SDL_Surface* pOptimisedSurface = SDL_DisplayFormatAlpha(pLoadedSurface);
+#  endif
   SDL_FreeSurface(pLoadedSurface);
   pLoadedSurface = pOptimisedSurface;
+#endif
 #ifndef PSP
   if (m_pixelMultiplier > 1) {
     Uint8* sourceBytes = (Uint8*)pLoadedSurface->pixels;
-    SDL_Surface* pMultipliedSurface = createSurface(pLoadedSurface->w, pLoadedSurface->h);
+    int multipliedWidth = pLoadedSurface->w * m_pixelMultiplier;
+    int multipliedHeight = pLoadedSurface->h * m_pixelMultiplier;
+    SDL_PixelFormat* pSourcePixelFormat = pLoadedSurface->format;
+    SDL_Surface* pMultipliedSurface = SDL_CreateRGBSurface(0, multipliedWidth, multipliedHeight, pSourcePixelFormat->BitsPerPixel, pSourcePixelFormat->Rmask, pSourcePixelFormat->Gmask, pSourcePixelFormat->Bmask, pSourcePixelFormat->Amask);
+#  ifndef SDL2
+    SDL_SetColorKey(pMultipliedSurface, SDL_SRCCOLORKEY, colorKey);
+#  else
+    SDL_SetColorKey(pMultipliedSurface, SDL_TRUE, colorKey);
+#  endif
     Uint8* destinationBytes = (Uint8*)pMultipliedSurface->pixels;
     int multipliedPixelRowSize = pMultipliedSurface->w * pMultipliedSurface->format->BytesPerPixel;
     Uint8* multipliedPixelRow = new Uint8[multipliedPixelRowSize];
@@ -351,9 +415,23 @@ SDL_Surface* GameEngine::loadSurface(const char* a_pFilename) {
     pLoadedSurface = pMultipliedSurface;
   }
 #endif
-  return pLoadedSurface;
+#ifndef SDL2
+  a_bitmap.pInternalObject = pLoadedSurface;
+#else
+  SDL_Texture* pLoadedTexture = SDL_CreateTextureFromSurface(m_pRenderer, pLoadedSurface);
+  a_bitmap.pInternalObject = pLoadedTexture;
+#endif
+  a_bitmap.width = pLoadedSurface->w;
+  a_bitmap.height = pLoadedSurface->h;
+#ifdef SDL2
+  SDL_FreeSurface(pLoadedSurface);
+#endif
 }
 
-void GameEngine::unloadSurface(SDL_Surface* a_pSurface) {
-  SDL_FreeSurface(a_pSurface);
+void GameEngine::unloadBitmap(Bitmap& a_bitmap) {
+#ifndef SDL2
+  SDL_FreeSurface(a_bitmap.pInternalObject);
+#else
+  SDL_DestroyTexture(a_bitmap.pInternalObject);
+#endif
 }

@@ -1,7 +1,6 @@
 #ifndef ROCKMAN_H
 #define ROCKMAN_H
 
-#include "SDL.h"
 #include "bullet.h"
 #include "collider.h"
 #include "controls.h"
@@ -9,6 +8,7 @@
 #include "direction.h"
 #include "fixedpoint8.h"
 #include "laddersonar.h"
+#include "rect.h"
 
 class Camera;
 class Level;
@@ -26,11 +26,12 @@ class Rockman {
       Accelerating = 1,
       Running = 2,
       Jumping = 3,
-      Climbing = 4,
-      ClimbingTop = 5,
-      Damaged = 6,
-      Teleporting = 7,
-      Transforming = 8
+      Landing = 4,
+      Climbing = 5,
+      ClimbingTop = 6,
+      Damaged = 7,
+      Teleporting = 8,
+      Transforming = 9
   };
 };
   struct MovementType {
@@ -38,7 +39,8 @@ class Rockman {
       Grounded,
       Airborne,
       Climbing,
-      Teleporting
+      Teleporting,
+      Transforming
     };
   };
   struct SpriteBitmap {
@@ -69,8 +71,7 @@ class Rockman {
   FixedPoint8 m_xSpeedJumping;
   FixedPoint8 m_xSpeedReeling;
   FixedPoint8 m_xSpeedRunning;
-  FixedPoint8 m_ySpeedClimbingDown;
-  FixedPoint8 m_ySpeedClimbingUp;
+  FixedPoint8 m_ySpeedClimbing;
   FixedPoint8 m_ySpeedCollision;
   FixedPoint8 m_ySpeedFalling;
   FixedPoint8 m_ySpeedGravity;
@@ -115,6 +116,7 @@ class Rockman {
   int m_durationDecelerating;
   int m_durationDeceleratingPreviousAnimation;
   int m_durationInvincible;
+  int m_durationLanding;
   int m_durationReeling;
   int m_durationScrolling;
   int m_durationShooting;
@@ -133,12 +135,12 @@ class Rockman {
   RockmanStateHandler m_currentStateHandler;
   RockmanEventHandler m_nextStateEventHandler;
   YCollisionResponse::type m_currentYCollisionResponse;
+  Bitmap m_bulletBitmap;
   Bullet m_bullets[kMaximumSimultaneousBullets];
-  SDL_Surface* m_pBulletBitmap;
   Level* m_pLevel;
   Map* m_pMap;
   Sprite* m_pSprite;
-  SDL_Rect m_boundingBox;
+  Rect m_boundingBox;
   Collider m_collider;
   LadderSonar m_ladderSonar;
   DebugInfo m_debugInfo;
@@ -147,6 +149,7 @@ class Rockman {
   void runningStateHandler(Controls a_buttons);
   void deceleratingStateHandler(Controls a_buttons);
   void jumpingStateHandler(Controls a_buttons);
+  void landingStateHandler(Controls a_buttons);
   void climbingStateHandler(Controls a_buttons);
   void scrollingStateHandler();
   void shootingStateHandler(Controls a_buttons, Camera& a_camera);
@@ -159,6 +162,7 @@ class Rockman {
   void onRunning();
   void onJumping(bool a_setAnimation = false);
   void onFalling(bool a_afterCollisionHandling = false);
+  void onLanding();
   void onClimbing();
   void onReeling();
   void onTransforming();
@@ -171,7 +175,7 @@ class Rockman {
   Rockman(IniDictionary& a_iniDictionary, Level* a_pLevel, Map* a_pMap);
   ~Rockman();
   void draw(Camera& a_camera);
-  const SDL_Rect& getBoundingBox();
+  const Rect& getBoundingBox();
   Collider getCollider();
   int getX();
   int getY();

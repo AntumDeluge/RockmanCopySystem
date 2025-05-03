@@ -4,8 +4,8 @@
 #include "inidictionary.h"
 
 struct Animation;
-struct SDL_Rect;
-struct SDL_Surface;
+struct Bitmap;
+struct Rect;
 
 class Sprite {
   private:
@@ -20,8 +20,8 @@ class Sprite {
   int m_yOffset;
   Animation* m_pAnimations;
   AnimationOrderHandler m_currentAnimationOrderHandler;
-  SDL_Surface** m_ppBitmaps;
-  SDL_Rect* m_pBitmapAreas;
+  Bitmap* m_pBitmaps;
+  Rect* m_pBitmapAreas;
 
   public:
   Sprite(IniDictionary& a_iniDictionary);
