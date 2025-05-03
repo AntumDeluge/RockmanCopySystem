@@ -26,7 +26,7 @@ void Font::drawNumber(int a_number, int a_x, int a_y, int a_nDigits) {
   SDL_Rect characterSetBitmapArea = { 0, 0, m_characterHeight, m_characterWidth };
   if (a_number < 0) {
     characterSetBitmapArea.y = m_characterSetBitmapMap.getIntValue("-", "Characters", 0);
-    videoService.blitUiToScreen(m_characterSetBitmap, a_x, a_y, &characterSetBitmapArea);
+    videoService.blitToScreen(m_characterSetBitmap, a_x, a_y, &characterSetBitmapArea);
     a_number *= -1;
   }
   a_x += m_characterWidth;
@@ -39,7 +39,7 @@ void Font::drawNumber(int a_number, int a_x, int a_y, int a_nDigits) {
     }
     int digit = a_number / divider;
     characterSetBitmapArea.y = digit * m_characterHeight;
-    videoService.blitUiToScreen(m_characterSetBitmap, a_x, a_y, &characterSetBitmapArea);
+    videoService.blitToScreen(m_characterSetBitmap, a_x, a_y, &characterSetBitmapArea);
     a_number -= (digit * divider);
     a_x += m_characterWidth;
   }

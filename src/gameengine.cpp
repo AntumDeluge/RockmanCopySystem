@@ -1,19 +1,27 @@
 #include "gameengine.h"
+#include "inidictionary.h"
+#include <cstring>
 
 
 GameEngine::GameEngine()
   : m_paused(false)
   , m_quitRequest(false)
-  , m_unpaused1Frame(false) {
+  , m_unpaused1Frame(false)
+  , m_pixelMultiplier(1)
+#ifdef PSP
+  , m_pJoystick(0)
+#endif
+  , m_pScreen(0) {
 #ifdef WIN32
   SDL_putenv("SDL_VIDEODRIVER=directx");
+#endif
+#ifndef PSP
   SDL_Init(SDL_INIT_TIMER | SDL_INIT_VIDEO);
   SDL_EventState(SDL_MOUSEMOTION, SDL_IGNORE);
   SDL_EventState(SDL_MOUSEBUTTONDOWN, SDL_IGNORE);
   SDL_EventState(SDL_MOUSEBUTTONUP, SDL_IGNORE);
   SDL_WM_SetCaption("Rockman Copy System", 0);
-#endif
-#ifdef PSP
+#else
   SDL_Init(SDL_INIT_TIMER | SDL_INIT_VIDEO | SDL_INIT_JOYSTICK);
   SDL_JoystickEventState(SDL_ENABLE);
   m_pJoystick = SDL_JoystickOpen(0);
@@ -32,10 +40,13 @@ GameEngine::GameEngine()
   m_buttons.jumpPressed = false;
   m_buttons.jumpDown = false;
   m_buttons.jumpReleased = false;
-#ifdef WIN32
-  m_pScreen = SDL_SetVideoMode(kScreenWidth, kScreenHeight, 0, SDL_SWSURFACE);
-#endif
-#ifdef PSP
+#ifndef PSP
+  IniDictionary settings("settings.ini");
+  m_pixelMultiplier = settings.getIntValue("pixelMultiplier", "Video", 1);
+  int multipliedScreenWidth = kScreenWidth * m_pixelMultiplier;
+  int multipliedScreenHeight = kScreenHeight * m_pixelMultiplier;
+  m_pScreen = SDL_SetVideoMode(multipliedScreenWidth, multipliedScreenHeight, 0, SDL_SWSURFACE);
+#else
   m_pScreen = SDL_SetVideoMode(kScreenWidth, kScreenHeight, 0, SDL_HWSURFACE | SDL_DOUBLEBUF);
 #endif
 }
@@ -72,20 +83,39 @@ bool GameEngine::areColliding(SDL_Rect* a_pBoxA, SDL_Rect* a_pBoxB) {
 }
 
 void GameEngine::blitToScreen(SDL_Surface* a_pSourceBitmap, int a_x, int a_y, SDL_Rect* a_pSourceBitmapArea) {
+  a_x *= m_pixelMultiplier;
+  a_y *= m_pixelMultiplier;
+  SDL_Rect* pSourceBitmapArea = a_pSourceBitmapArea;
+#ifndef PSP
+  SDL_Rect multipliedSourceBitmapArea;
+  if (a_pSourceBitmapArea != 0) {
+    multipliedSourceBitmapArea.x = a_pSourceBitmapArea->x * m_pixelMultiplier;
+    multipliedSourceBitmapArea.y = a_pSourceBitmapArea->y * m_pixelMultiplier;
+    multipliedSourceBitmapArea.w = a_pSourceBitmapArea->w * m_pixelMultiplier;
+    multipliedSourceBitmapArea.h = a_pSourceBitmapArea->h * m_pixelMultiplier;
+    pSourceBitmapArea = &multipliedSourceBitmapArea;
+  }
+#endif
   SDL_Rect destinationRect = {a_x, a_y, 0, 0};
-  SDL_BlitSurface(a_pSourceBitmap, a_pSourceBitmapArea, m_pScreen, &destinationRect);
+  SDL_BlitSurface(a_pSourceBitmap, pSourceBitmapArea, m_pScreen, &destinationRect);
 }
 
 void GameEngine::blitToSurface(SDL_Surface* a_pSourceBitmap, SDL_Surface* a_pDestinationBitmap, int a_destinationX, int a_destinationY, SDL_Rect* a_pSourceBitmapArea) {
+  a_destinationX *= m_pixelMultiplier;
+  a_destinationY *= m_pixelMultiplier;
+  SDL_Rect* pSourceBitmapArea = a_pSourceBitmapArea;
+#ifndef PSP
+  SDL_Rect multipliedSourceBitmapArea;
+  if (a_pSourceBitmapArea != 0) {
+    multipliedSourceBitmapArea.x = a_pSourceBitmapArea->x * m_pixelMultiplier;
+    multipliedSourceBitmapArea.y = a_pSourceBitmapArea->y * m_pixelMultiplier;
+    multipliedSourceBitmapArea.w = a_pSourceBitmapArea->w * m_pixelMultiplier;
+    multipliedSourceBitmapArea.h = a_pSourceBitmapArea->h * m_pixelMultiplier;
+    pSourceBitmapArea = &multipliedSourceBitmapArea;
+  }
+#endif
   SDL_Rect destinationRect = {a_destinationX, a_destinationY, 0, 0};
-  SDL_BlitSurface(a_pSourceBitmap, a_pSourceBitmapArea, a_pDestinationBitmap, &destinationRect);
-}
-
-void GameEngine::blitUiToScreen(SDL_Surface* a_pSourceBitmap, int a_destinationX, int a_destinationY, SDL_Rect* a_pSourceBitmapArea) {
-  SDL_Rect offset;
-  offset.x = a_destinationX;
-  offset.y = a_destinationY;
-  SDL_BlitSurface(a_pSourceBitmap, a_pSourceBitmapArea, m_pScreen, &offset);
+  SDL_BlitSurface(a_pSourceBitmap, pSourceBitmapArea, a_pDestinationBitmap, &destinationRect);
 }
 
 void GameEngine::clearScreen() {
@@ -94,6 +124,8 @@ void GameEngine::clearScreen() {
 }
 
 SDL_Surface* GameEngine::createSurface(int a_width, int a_height) {
+  a_width *= m_pixelMultiplier;
+  a_height *= m_pixelMultiplier;
   SDL_PixelFormat* pPixelFormat = m_pScreen->format;
   SDL_Surface* pNewSurface = SDL_CreateRGBSurface(0, a_width, a_height, pPixelFormat->BitsPerPixel, pPixelFormat->Rmask, pPixelFormat->Gmask, pPixelFormat->Bmask, pPixelFormat->Amask);
   Uint32 colorKey = SDL_MapRGB(pNewSurface->format, 0xFF, 0x80, 0xFF);
@@ -120,82 +152,73 @@ void GameEngine::handleEvents() {
     m_unpaused1Frame = false;
   }
   while (SDL_PollEvent(&m_externalEvent)) {
-#ifdef WIN32
+#ifndef PSP
     if (m_externalEvent.type == SDL_KEYDOWN) {
       switch (m_externalEvent.key.keysym.sym) {
-#endif
-#ifdef PSP
+#else
     if (m_externalEvent.type == SDL_JOYBUTTONDOWN) {
       switch (m_externalEvent.jbutton.button) {
 #endif
-#ifdef WIN32
+#ifndef PSP
         case SDLK_UP:
-#endif
-#ifdef PSP
+#else
         case PspButton::Up:
 #endif
           m_buttons.verticalDirection = Direction::Up;
           m_buttons.upDown = true;
           break;
-#ifdef WIN32
+#ifndef PSP
         case SDLK_DOWN:
-#endif
-#ifdef PSP
+#else
         case PspButton::Down:
 #endif
           m_buttons.verticalDirection = Direction::Down;
           m_buttons.downDown = true;
           break;
-#ifdef WIN32
+#ifndef PSP
         case SDLK_LEFT:
-#endif
-#ifdef PSP
+#else
         case PspButton::Left:
 #endif
           m_buttons.horizontalDirection = Direction::Left;
           m_buttons.leftDown = true;
           break;
-#ifdef WIN32
+#ifndef PSP
         case SDLK_RIGHT:
-#endif
-#ifdef PSP
+#else
         case PspButton::Right:
 #endif
           m_buttons.horizontalDirection = Direction::Right;
           m_buttons.rightDown = true;
           break;
-#ifdef WIN32
+#ifndef PSP
         case SDLK_b:
-#endif
-#ifdef PSP
+#else
         case PspButton::Square:
 #endif
           m_buttons.actionPressed = true;
           m_buttons.actionDown = true;
           m_buttons.actionReleased = false;
           break;
-#ifdef WIN32
+#ifndef PSP
         case SDLK_SPACE:
-#endif
-#ifdef PSP
+#else
         case PspButton::Cross:
 #endif
           m_buttons.jumpPressed = true;
           m_buttons.jumpDown = true;
           m_buttons.jumpReleased = false;
           break;
-#ifdef WIN32
+#ifndef PSP
         case SDLK_RETURN:
-#endif
-#ifdef PSP
+#else
         case PspButton::Start:
 #endif
           m_paused = !m_paused;
           break;
-#ifdef WIN32
+#ifndef PSP
         case SDLK_TAB:
-#endif
-#ifdef PSP
+#else
         case PspButton::Select:
 #endif
           if (m_paused) {
@@ -205,18 +228,16 @@ void GameEngine::handleEvents() {
           break;
       }
     }
-#ifdef WIN32
+#ifndef PSP
     else if (m_externalEvent.type == SDL_KEYUP) {
       switch (m_externalEvent.key.keysym.sym) {
-#endif
-#ifdef PSP
+#else
     else if (m_externalEvent.type == SDL_JOYBUTTONUP) {
       switch (m_externalEvent.jbutton.button) {
 #endif
-#ifdef WIN32
+#ifndef PSP
         case SDLK_UP:
-#endif
-#ifdef PSP
+#else
         case PspButton::Up:
 #endif
           if (m_buttons.downDown) {
@@ -227,10 +248,9 @@ void GameEngine::handleEvents() {
           }
           m_buttons.upDown = false;
           break;
-#ifdef WIN32
+#ifndef PSP
         case SDLK_DOWN:
-#endif
-#ifdef PSP
+#else
         case PspButton::Down:
 #endif
           if (m_buttons.upDown) {
@@ -241,10 +261,9 @@ void GameEngine::handleEvents() {
           }
           m_buttons.downDown = false;
           break;
-#ifdef WIN32
+#ifndef PSP
         case SDLK_LEFT:
-#endif
-#ifdef PSP
+#else
         case PspButton::Left:
 #endif
           if (m_buttons.rightDown) {
@@ -255,10 +274,9 @@ void GameEngine::handleEvents() {
           }
           m_buttons.leftDown = false;
           break;
-#ifdef WIN32
+#ifndef PSP
         case SDLK_RIGHT:
-#endif
-#ifdef PSP
+#else
         case PspButton::Right:
 #endif
           if (m_buttons.leftDown) {
@@ -269,20 +287,18 @@ void GameEngine::handleEvents() {
           }
           m_buttons.rightDown = false;
           break;
-#ifdef WIN32
+#ifndef PSP
         case SDLK_b:
-#endif
-#ifdef PSP
+#else
         case PspButton::Square:
 #endif
           m_buttons.actionPressed = false;
           m_buttons.actionDown = false;
           m_buttons.actionReleased = true;
           break;
-#ifdef WIN32
+#ifndef PSP
         case SDLK_SPACE:
-#endif
-#ifdef PSP
+#else
         case PspButton::Cross:
 #endif
           m_buttons.jumpPressed = false;
@@ -301,10 +317,39 @@ SDL_Surface* GameEngine::loadSurface(const char* a_pFilename) {
   SDL_Surface* pLoadedSurface = SDL_LoadBMP(a_pFilename);
   Uint32 colorKey = SDL_MapRGB(pLoadedSurface->format, 0xFF, 0x80, 0xFF);
   SDL_SetColorKey(pLoadedSurface, SDL_SRCCOLORKEY, colorKey);
-#ifdef PSP
+#ifndef PSP
+  SDL_Surface* pOptimisedSurface = SDL_DisplayFormat(pLoadedSurface);
+#else
   SDL_Surface* pOptimisedSurface = SDL_DisplayFormatAlpha(pLoadedSurface);
+#endif
   SDL_FreeSurface(pLoadedSurface);
   pLoadedSurface = pOptimisedSurface;
+#ifndef PSP
+  if (m_pixelMultiplier > 1) {
+    Uint8* sourceBytes = (Uint8*)pLoadedSurface->pixels;
+    SDL_Surface* pMultipliedSurface = createSurface(pLoadedSurface->w, pLoadedSurface->h);
+    Uint8* destinationBytes = (Uint8*)pMultipliedSurface->pixels;
+    int multipliedPixelRowSize = pMultipliedSurface->w * pMultipliedSurface->format->BytesPerPixel;
+    Uint8* multipliedPixelRow = new Uint8[multipliedPixelRowSize];
+    for (int iSourceRowPixel = 0; iSourceRowPixel < pLoadedSurface->h; ++iSourceRowPixel) {
+      int iSourceRowByte = iSourceRowPixel * pLoadedSurface->pitch;
+      int iSourceByte = iSourceRowByte;
+      for (int iSourceColumnPixel = 0; iSourceColumnPixel < pLoadedSurface->w; ++iSourceColumnPixel) {
+        for (int iPixelMultiplier = 0; iPixelMultiplier < m_pixelMultiplier; ++iPixelMultiplier) {
+          int iMultipliedPixelRow = ((iSourceColumnPixel * m_pixelMultiplier) + iPixelMultiplier) * pLoadedSurface->format->BytesPerPixel;
+          memcpy(&(multipliedPixelRow[iMultipliedPixelRow]), &(sourceBytes[iSourceByte]), pLoadedSurface->format->BytesPerPixel);
+        }
+        iSourceByte += pLoadedSurface->format->BytesPerPixel;
+      }
+      int iDestinationByte = iSourceRowPixel * m_pixelMultiplier * pMultipliedSurface->pitch;
+      for (int iPixelMultiplier = 0; iPixelMultiplier < m_pixelMultiplier; ++iPixelMultiplier) {
+        memcpy(&(destinationBytes[iDestinationByte]), multipliedPixelRow, multipliedPixelRowSize);
+        iDestinationByte += pMultipliedSurface->pitch;
+      }
+    }
+    SDL_FreeSurface(pLoadedSurface);
+    pLoadedSurface = pMultipliedSurface;
+  }
 #endif
   return pLoadedSurface;
 }

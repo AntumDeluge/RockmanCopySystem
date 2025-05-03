@@ -7,11 +7,10 @@
 #include "font.h"
 #include "videoservice.h"
 
-const int kScreenWidth = 256;
-const int kScreenHeight = 240;
-
 class GameEngine : public VideoService {
   private:
+  static const int kScreenWidth = 256;
+  static const int kScreenHeight = 240;
 #ifdef PSP
   struct PspButton {
     enum type {
@@ -35,6 +34,7 @@ class GameEngine : public VideoService {
   bool m_paused;
   bool m_quitRequest;
   bool m_unpaused1Frame;
+  int m_pixelMultiplier;
   Controls m_buttons;
   SDL_Event m_externalEvent;
 #ifdef PSP
@@ -48,7 +48,6 @@ class GameEngine : public VideoService {
   bool areColliding(SDL_Rect* a_pBoxA, SDL_Rect* a_pBoxB);
   void blitToScreen(SDL_Surface* a_pSourceBitmap, int a_x, int a_y, SDL_Rect* a_pSourceBitmapArea = 0);
   void blitToSurface(SDL_Surface* a_pSourceBitmap, SDL_Surface* a_pDestinationBitmap, int a_destinationX, int a_destinationY, SDL_Rect* a_pSourceBitmapArea = 0);
-  void blitUiToScreen(SDL_Surface* a_pSourceBitmap, int a_destinationX, int a_destinationY, SDL_Rect* a_pSourceBitmapArea = 0);
   void clearScreen();
   SDL_Surface* createSurface(int a_width, int a_height);
   int flipScreen();

@@ -11,7 +11,7 @@ Map::Map(const char* a_pMapName, IniDictionary& a_iniDictionary)
   , m_nBoundaries(0)
   , m_currentBoundaryIndex(0)
   , m_nTiles(0)
-  , m_nTileTypes(0)
+  , m_nTileSetBitmapAreas(0)
   , m_nScreens(0)
   , m_nScreensHorizontal(0)
   , m_nScreensVertical(0)
@@ -34,19 +34,19 @@ Map::Map(const char* a_pMapName, IniDictionary& a_iniDictionary)
   assert(map.fail() == false);
   int nTilesWide = map.get();
   int nTilesHigh = map.get();
-  m_nTileTypes = map.get();
-  // Tile type zero is an empty tile that isn't included in the tile set.
-  // Therefore, it doesn't count towards the total tile type count.
-  m_nTileTypes--;
+  m_nTileSetBitmapAreas = map.get();
+  // Bitmap area zero is an empty tile that isn't included in the tile set.
+  // Therefore, it doesn't count towards the total bitmap area count.
+  m_nTileSetBitmapAreas--;
   m_nTiles = nTilesWide * nTilesHigh;
   m_width = nTilesWide * Tile::kWidth;
   m_height = nTilesHigh * Tile::kHeight;
-  m_pTileSetBitmapAreas = new SDL_Rect[m_nTileTypes];
-  for (int iTileType = 0; iTileType < m_nTileTypes; iTileType++) {
-    m_pTileSetBitmapAreas[iTileType].x = 0;
-    m_pTileSetBitmapAreas[iTileType].y = iTileType * Tile::kHeight;
-    m_pTileSetBitmapAreas[iTileType].w = Tile::kWidth;
-    m_pTileSetBitmapAreas[iTileType].h = Tile::kHeight;
+  m_pTileSetBitmapAreas = new SDL_Rect[m_nTileSetBitmapAreas];
+  for (int iTileSetBitmapArea = 0; iTileSetBitmapArea < m_nTileSetBitmapAreas; iTileSetBitmapArea++) {
+    m_pTileSetBitmapAreas[iTileSetBitmapArea].x = 0;
+    m_pTileSetBitmapAreas[iTileSetBitmapArea].y = iTileSetBitmapArea * Tile::kHeight;
+    m_pTileSetBitmapAreas[iTileSetBitmapArea].w = Tile::kWidth;
+    m_pTileSetBitmapAreas[iTileSetBitmapArea].h = Tile::kHeight;
   }
   m_nScreensHorizontal = nTilesWide / knTilesPerRowInScreen;
   m_nScreensVertical = nTilesHigh / knTilesPerColumnInScreen;
@@ -57,10 +57,10 @@ Map::Map(const char* a_pMapName, IniDictionary& a_iniDictionary)
   }
   for (int iTileRow = 0; iTileRow < nTilesHigh; iTileRow++) {
     for (int iTileColumn = 0; iTileColumn < nTilesWide; iTileColumn+= knTilesPerRowInScreen) {
-      int iNextTileType = map.peek();
-      // Tile type zero is an empty tile. If we encounter one, it means
+      int iNextTileSetBitmapArea = map.peek();
+      // Bitmap area zero is an empty tile. If we encounter one, it means
       // we're at the beginning of a row of tiles of an empty screen.
-      if (iNextTileType == 0) {
+      if (iNextTileSetBitmapArea == 0) {
         map.ignore(knTilesPerRowInScreen * knTileBytes);
       }
       else {
@@ -73,14 +73,15 @@ Map::Map(const char* a_pMapName, IniDictionary& a_iniDictionary)
         int iCurrentScreenColumn = iTileColumn % knTilesPerRowInScreen;
         int iCurrentTile = iCurrentScreenRow * knTilesPerRowInScreen + iCurrentScreenColumn;
         for (int iScreenColumnTile = 0; iScreenColumnTile < knTilesPerRowInScreen; iScreenColumnTile++) {
-          int iCurrentTileType = map.get();
-          // Tile type zero is an empty tile that isn't included in the tile set.
-          // Therefore, to map the read integer to the correct internal tile type,
+          int iCurrentTileSetBitmapArea = map.get();
+          // Bitmap area zero is an empty tile that isn't included in the tile set.
+          // Therefore, to map the read integer to the correct internal bitmap area,
           // the value has to be decreased by one.
-          iCurrentTileType--;
-          bool collidable = (bool)map.get();
-          m_ppScreens[iCurrentScreen][iCurrentTile].type = iCurrentTileType;
-          m_ppScreens[iCurrentScreen][iCurrentTile].collidable = collidable;
+          iCurrentTileSetBitmapArea--;
+          int tileTypeInt = map.get();
+          Tile::Type::type tileType = (Tile::Type::type)tileTypeInt;
+          m_ppScreens[iCurrentScreen][iCurrentTile].bitmapAreaId = iCurrentTileSetBitmapArea;
+          m_ppScreens[iCurrentScreen][iCurrentTile].type = tileType;
           m_ppScreens[iCurrentScreen][iCurrentTile].x = (iTileColumn + iScreenColumnTile) * Tile::kWidth;
           m_ppScreens[iCurrentScreen][iCurrentTile].y = iTileRow * Tile::kHeight;
           iCurrentTile++;
@@ -133,7 +134,7 @@ void Map::draw(Camera& a_camera) {
   for (int iTile = 0; iTile < knTilesPerRowInScreen * knTilesPerColumnInScreen; iTile++) {
     int x = a_camera.getScreenMappedXCoordinate(m_ppScreens[screen][iTile].x);
     int y = a_camera.getScreenMappedYCoordinate(m_ppScreens[screen][iTile].y);
-    videoService.blitToScreen(m_pTileSetBitmap, x, y, &m_pTileSetBitmapAreas[m_ppScreens[screen][iTile].type]);
+    videoService.blitToScreen(m_pTileSetBitmap, x, y, &m_pTileSetBitmapAreas[m_ppScreens[screen][iTile].bitmapAreaId]);
   }
   // Check if the camera is positioned on two horizontal screens at once.
   int secondScreenViewableX = cameraAngleOfView.x % kScreenWidth;
@@ -142,7 +143,7 @@ void Map::draw(Camera& a_camera) {
     for (int iTile = 0; iTile < knTilesPerRowInScreen * knTilesPerColumnInScreen; iTile++) {
       int x = a_camera.getScreenMappedXCoordinate(m_ppScreens[screen][iTile].x);
       int y = a_camera.getScreenMappedYCoordinate(m_ppScreens[screen][iTile].y);
-      videoService.blitToScreen(m_pTileSetBitmap, x, y, &m_pTileSetBitmapAreas[m_ppScreens[screen][iTile].type]);
+      videoService.blitToScreen(m_pTileSetBitmap, x, y, &m_pTileSetBitmapAreas[m_ppScreens[screen][iTile].bitmapAreaId]);
     }
   }
   else {
@@ -153,7 +154,7 @@ void Map::draw(Camera& a_camera) {
       for (int iTile = 0; iTile < knTilesPerRowInScreen * knTilesPerColumnInScreen; iTile++) {
         int x = a_camera.getScreenMappedXCoordinate(m_ppScreens[screen][iTile].x);
         int y = a_camera.getScreenMappedYCoordinate(m_ppScreens[screen][iTile].y);
-        videoService.blitToScreen(m_pTileSetBitmap, x, y, &m_pTileSetBitmapAreas[m_ppScreens[screen][iTile].type]);
+        videoService.blitToScreen(m_pTileSetBitmap, x, y, &m_pTileSetBitmapAreas[m_ppScreens[screen][iTile].bitmapAreaId]);
       }
     }
   }
@@ -167,30 +168,30 @@ LadderSonar Map::getLadderSonar(int a_x, int a_y, int a_yNextFrame, bool a_movin
   LadderSonar ladderSonar = { false, false, false, false, false };
   int y = a_y + LadderSonar::kAtFeetOffsetY;
   Tile detectedTile = getTile(a_x, y);
-  if (detectedTile.type == Tile::kLadderType) {
+  if (detectedTile.type == Tile::Type::Climbable) {
     ladderSonar.atFeet = true;
   }
   y = a_y + LadderSonar::kBehindEyesOffsetY;
   detectedTile = getTile(a_x, y);
-  if (detectedTile.type == Tile::kLadderType) {
+  if (detectedTile.type == Tile::Type::Climbable) {
     ladderSonar.behindEyes = true;
   }
   y = a_y + LadderSonar::kAtHeadTopOffsetY;
   detectedTile = getTile(a_x, y);
-  if (detectedTile.type == Tile::kLadderType) {
+  if (detectedTile.type == Tile::Type::Climbable) {
     ladderSonar.atHeadTop = true;
   }
   if (a_movingUp) {
     y = a_yNextFrame + LadderSonar::kAtHeadTopOffsetY;
     detectedTile = getTile(a_x, y);
-    if (detectedTile.type == Tile::kLadderType) {
+    if (detectedTile.type == Tile::Type::Climbable) {
       ladderSonar.atHeadTopNextFrame = true;
     }
   }
   else {
     y = a_yNextFrame + LadderSonar::kBelowFeetOffsetY;
     detectedTile = getTile(a_x, y);
-    if (detectedTile.type == Tile::kLadderType) {
+    if (detectedTile.type == Tile::Type::Climbable) {
       ladderSonar.belowFeetNextFrame = true;
     }
   }
@@ -225,19 +226,19 @@ int Map::getMaxXDelta(SDL_Rect a_boundingBox, Direction::type a_direction) {
   // Get the tile to the bottom left or right.
   int collisionY = a_boundingBox.y + a_boundingBox.h;
   Tile sideTile = getTile(collisionX, collisionY);
-  if (sideTile.collidable) {
+  if (sideTile.type == Tile::Type::Collidable) {
     return maxXDelta;
   }
   // Get the tile to the middle left or right.
   collisionY = a_boundingBox.y + (a_boundingBox.h / 2);
   sideTile = getTile(collisionX, collisionY);
-  if (sideTile.collidable) {
+  if (sideTile.type == Tile::Type::Collidable) {
     return maxXDelta;
   }
   // Get the tile to the top left or right.
   collisionY = a_boundingBox.y;
   sideTile = getTile(collisionX, collisionY);
-  if (sideTile.collidable) {
+  if (sideTile.type == Tile::Type::Collidable) {
     return maxXDelta;
   }
   return Tile::kWidth;
@@ -257,27 +258,27 @@ int Map::getMaxYDelta(SDL_Rect a_boundingBox, Direction::type a_direction) {
   }
   int collisionX = a_boundingBox.x + a_boundingBox.w;
   Tile topbottomRightTile = getTile(collisionX, collisionY);
-  if (topbottomRightTile.collidable) {
+  if (topbottomRightTile.type == Tile::Type::Collidable) {
     return maxYDelta;
   }
   // A ladder is not collidable, except for its top.
   // Check if Mega Man is above a ladder.
-  else if (topbottomRightTile.type == Tile::kLadderType && a_direction == Direction::Down) {
+  else if (topbottomRightTile.type == Tile::Type::Climbable && a_direction == Direction::Down) {
     Tile currentTile = getTile(collisionX, currentY);
-    if (currentTile.type != Tile::kLadderType) {
+    if (currentTile.type != Tile::Type::Climbable) {
       return maxYDelta;
     }
   }
   collisionX = a_boundingBox.x;
   Tile topbottomLeftTile = getTile(collisionX, collisionY);
-  if (topbottomLeftTile.collidable) {
+  if (topbottomLeftTile.type == Tile::Type::Collidable) {
     return maxYDelta;
   }
   // A ladder is not collidable, except for its top.
   // Check if Mega Man is above a ladder.
-  else if (topbottomLeftTile.type == Tile::kLadderType && a_direction == Direction::Down) {
+  else if (topbottomLeftTile.type == Tile::Type::Climbable && a_direction == Direction::Down) {
     Tile currentTile = getTile(collisionX, currentY);
-    if (currentTile.type != Tile::kLadderType) {
+    if (currentTile.type != Tile::Type::Climbable) {
       return maxYDelta;
     }
   }
@@ -301,16 +302,18 @@ Tile Map::getTile(int a_x, int a_y) {
   }
   else {
     // Requested tile is not in a non-empty screen.
-    tile.type = 0;
+    tile.bitmapAreaId = 0;
+    tile.type = Tile::Type::Collidable;
     tile.x = a_x - (a_x % Tile::kWidth);
     tile.y = a_y - (a_y % Tile::kHeight);
-    tile.collidable = true;
   }
   // Tiles to the left and right of the current boundary should be collidable.
   // Those above and below of the current boundary, however, should not.
   if (a_y < m_pBoundaries[m_currentBoundaryIndex].y
       || (a_y > m_pBoundaries[m_currentBoundaryIndex].y + kScreenHeight)) {
-    tile.collidable = false;
+    if (tile.type == Tile::Type::Collidable) {
+      tile.type = Tile::Type::Background;
+    }
   }
   return tile;
 }

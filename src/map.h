@@ -22,7 +22,7 @@ class Map {
   static const int knTileBytes = 2;
   int m_width, m_height;
   int m_nBoundaries, m_currentBoundaryIndex;
-  int m_nTiles, m_nTileTypes;
+  int m_nTiles, m_nTileSetBitmapAreas;
   int m_nScreens, m_nScreensHorizontal, m_nScreensVertical;
   int m_scrollStartPosTop, m_scrollStartPosBottom;
   int m_teleportStopPosY;

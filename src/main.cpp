@@ -11,16 +11,15 @@
 // Aaron (http://forums.wolfire.com/viewtopic.php?f=1&t=16539)
 // Disch (http://forums.nesdev.com/viewtopic.php?f=3&t=6107)
 
-#ifdef WIN32
+#ifndef PSP
 int main(int argc, char* args[]) {
-#endif
-#ifdef PSP
+#else
 extern "C" int main(int argc, char* args[]) {
 #endif
   GameEngine* gameEngine = new GameEngine();
   ServiceLocator::provideVideoService(gameEngine);
   GameStateManager* pGameStateManager = new GameStateManager();
-#ifdef WIN32
+#ifndef PSP
   const int knMillisecondsPerSecond = 1000;
   const int knFrameDurations = 3;
   int iCurrentFrameDuration = 0;
@@ -43,7 +42,7 @@ extern "C" int main(int argc, char* args[]) {
     if (gameEngine->flipScreen() == -1) {
       return 1;
     }
-#ifdef WIN32
+#ifndef PSP
     nextFrameTicks += frameDurations[iCurrentFrameDuration];
     iCurrentFrameDuration++;
     if (iCurrentFrameDuration == knFrameDurations) {

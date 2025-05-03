@@ -1,5 +1,4 @@
 #include "menuitem.h"
-#include "globals.h"
 
 
 MenuItem::MenuItem()

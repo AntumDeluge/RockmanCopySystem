@@ -79,9 +79,11 @@ class Rockman {
   FixedPoint8 m_ySpeedJumpReleasedMax;
   FixedPoint8 m_ySpeedMin;
   FixedPoint8 m_ySpeedScrolling;
+  FixedPoint8 m_ySpeedScrollingFirstFrame;
   FixedPoint8 m_ySpeedReeling;
 // end constants
   Direction::type m_direction;
+  bool m_collisionDetected;
   bool m_destroyed;
   bool m_scrolling;
   bool m_shooting;
@@ -89,10 +91,18 @@ class Rockman {
   bool m_stateChanged;
 // behavior flags loaded from file
   bool m_adjustPositionAfterScroll;
+  bool m_checkForLadderAfterCollisionCheck;
   bool m_firstAcceleratingFrameIsRunningSpeed;
   bool m_firstDeceleratingFrameIsRunningSpeed;
+  bool m_firstScrollingFrameIsDifferentSpeed;
+  bool m_noDirectionReversalAtLadderGrab;
+  bool m_noGravityApplicationAfterJump;
   bool m_noJumpDelay;
+  bool m_noLadderGrabAssistAfterCollision;
+  bool m_noUpwardsPushAtLadderBottomGrab;
   bool m_onlyIntAdjustmentAtYCollision;
+  bool m_resetFractionAtScrollStart;
+  bool m_setFractionAtScrollStart;
 // end constants
 // scroll constants loaded from file
   int m_scrollStartFraction;

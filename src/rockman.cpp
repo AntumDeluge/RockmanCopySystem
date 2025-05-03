@@ -1,6 +1,5 @@
 #include "rockman.h"
 #include "camera.h"
-#include "collisiontestingresult.h"
 #include "globals.h"
 #include "inidictionary.h"
 #include "level.h"
@@ -31,18 +30,28 @@ Rockman::Rockman(IniDictionary& a_iniDictionary, Level* a_pLevel, Map* a_pMap)
   , m_ySpeedJumpReleasedMax(0)
   , m_ySpeedMin(0)
   , m_ySpeedScrolling(0)
+  , m_ySpeedScrollingFirstFrame(0)
   , m_ySpeedReeling(0)
   , m_direction(Direction::Right)
+  , m_collisionDetected(false)
   , m_destroyed(false)
   , m_scrolling(false)
   , m_shooting(false)
   , m_movementType(MovementType::Teleporting)
   , m_stateChanged(false)
   , m_adjustPositionAfterScroll(false)
+  , m_checkForLadderAfterCollisionCheck(false)
   , m_firstAcceleratingFrameIsRunningSpeed(false)
   , m_firstDeceleratingFrameIsRunningSpeed(false)
+  , m_firstScrollingFrameIsDifferentSpeed(false)
+  , m_noDirectionReversalAtLadderGrab(false)
+  , m_noGravityApplicationAfterJump(false)
   , m_noJumpDelay(false)
+  , m_noLadderGrabAssistAfterCollision(false)
+  , m_noUpwardsPushAtLadderBottomGrab(false)
   , m_onlyIntAdjustmentAtYCollision(false)
+  , m_resetFractionAtScrollStart(false)
+  , m_setFractionAtScrollStart(false)
   , m_scrollStartFraction(0)
   , m_scrollDownEndPosY(0)
   , m_scrollUpEndPosY(0)
@@ -83,10 +92,18 @@ Rockman::Rockman(IniDictionary& a_iniDictionary, Level* a_pLevel, Map* a_pMap)
   m_pSprite = new Sprite(a_iniDictionary);
   m_pSprite->setCurrentAnimationIndex(AnimationType::Teleporting);
   m_adjustPositionAfterScroll = a_iniDictionary.getBoolValue("adjustPositionAfterScroll", "Options", false);
+  m_checkForLadderAfterCollisionCheck = a_iniDictionary.getBoolValue("checkForLadderAfterCollisionCheck", "Options", false);
   m_firstAcceleratingFrameIsRunningSpeed = a_iniDictionary.getBoolValue("firstAcceleratingFrameIsWalkingSpeed", "Options", false);
   m_firstDeceleratingFrameIsRunningSpeed = a_iniDictionary.getBoolValue("firstDeceleratingFrameIsWalkingSpeed", "Options", false);
+  m_firstScrollingFrameIsDifferentSpeed = a_iniDictionary.getBoolValue("firstScrollingFrameIsDifferentSpeed", "Options", false);
+  m_noDirectionReversalAtLadderGrab = a_iniDictionary.getBoolValue("noDirectionReversalAtLadderGrab", "Options", false);
+  m_noGravityApplicationAfterJump = a_iniDictionary.getBoolValue("noGravityApplicationAfterJump", "Options", false);
   m_noJumpDelay = a_iniDictionary.getBoolValue("noJumpDelay", "Options", false);
+  m_noLadderGrabAssistAfterCollision = a_iniDictionary.getBoolValue("noLadderGrabAssistAfterCollision", "Options", false);
+  m_noUpwardsPushAtLadderBottomGrab = a_iniDictionary.getBoolValue("noUpwardsPushAtLadderBottomGrab", "Options", false);
   m_onlyIntAdjustmentAtYCollision = a_iniDictionary.getBoolValue("onlyIntAdjustmentAtYCollision", "Options", false);
+  m_resetFractionAtScrollStart = a_iniDictionary.getBoolValue("resetFractionAtScrollStart", "Options", false);
+  m_setFractionAtScrollStart = a_iniDictionary.getBoolValue("setFractionAtScrollStart", "Options", false);
   int xSpeedInt = a_iniDictionary.getIntValue("acceleratingInt", "XSpeed", 0);
   int xSpeedFraction = a_iniDictionary.getIntValue("acceleratingFraction", "XSpeed", 0);
   m_xSpeedAccelerating = FixedPoint8(xSpeedInt, xSpeedFraction);
@@ -135,6 +152,9 @@ Rockman::Rockman(IniDictionary& a_iniDictionary, Level* a_pLevel, Map* a_pMap)
   ySpeedInt = a_iniDictionary.getIntValue("scrollingInt", "YSpeed", 0);
   ySpeedFraction = a_iniDictionary.getIntValue("scrollingFraction", "YSpeed", 0);
   m_ySpeedScrolling = FixedPoint8(ySpeedInt, ySpeedFraction);
+  ySpeedInt = a_iniDictionary.getIntValue("scrollingFirstFrameInt", "YSpeed", 0);
+  ySpeedFraction = a_iniDictionary.getIntValue("scrollingFirstFrameFraction", "YSpeed", 0);
+  m_ySpeedScrollingFirstFrame = FixedPoint8(ySpeedInt, ySpeedFraction);
   ySpeedInt = a_iniDictionary.getIntValue("reelingInt", "YSpeed", 0);
   ySpeedFraction = a_iniDictionary.getIntValue("reelingFraction", "YSpeed", 0);
   m_ySpeedReeling = FixedPoint8(ySpeedInt, ySpeedFraction);
@@ -229,9 +249,20 @@ void Rockman::onScrollingStart() {
   printf("onScrolling\n");
 #endif
   m_scrolling = true;
-  m_y = (int)m_y;
-  if (m_adjustPositionAfterScroll) {
+  if (m_resetFractionAtScrollStart) {
+    m_y = (int)m_y;
+  }
+  if (m_setFractionAtScrollStart) {
+    m_y = (int)m_y;
     m_y += FixedPoint8(0, m_scrollStartFraction);
+  }
+  else if (m_firstScrollingFrameIsDifferentSpeed) {
+    if (m_ySpeed > FixedPoint8(0)) {
+      m_y -= m_ySpeedScrollingFirstFrame;
+    }
+    else {
+      m_y += m_ySpeedScrollingFirstFrame;
+    }
   }
   else {
     scrollingStateHandler();
@@ -298,9 +329,11 @@ void Rockman::update(Controls a_controls, Camera& a_camera) {
   if (m_movementType != MovementType::Teleporting) {
     this->shootingStateHandler(a_controls, a_camera);
   }
-  if (m_movementType == MovementType::Grounded
-      || m_movementType == MovementType::Airborne) {
-    checkClimbing(a_controls);
+  if (!m_checkForLadderAfterCollisionCheck) {
+    if (m_movementType == MovementType::Grounded
+        || m_movementType == MovementType::Airborne) {
+      checkClimbing(a_controls);
+    }
   }
   (this->*m_currentStateHandler)(a_controls);
   if (m_movementType != MovementType::Teleporting) {
@@ -322,13 +355,22 @@ void Rockman::update(Controls a_controls, Camera& a_camera) {
     }
     if (m_noJumpDelay && a_controls.jumpPressed && m_movementType == MovementType::Grounded) {
       onJumping(true);
-      handleYCollision(a_controls);
-    }
-    else {
-      bool collisionDetected = handleYCollision(a_controls);
-      if (!collisionDetected) {
+      m_collisionDetected = handleYCollision(a_controls);
+      if (!m_noGravityApplicationAfterJump) {
         m_ySpeed -= m_ySpeedGravity;
       }
+    }
+    else {
+      m_collisionDetected = handleYCollision(a_controls);
+      if (!m_collisionDetected) {
+        m_ySpeed -= m_ySpeedGravity;
+      }
+    }
+  }
+  if (m_checkForLadderAfterCollisionCheck) {
+    if (m_movementType == MovementType::Grounded
+        || m_movementType == MovementType::Airborne) {
+      checkClimbing(a_controls);
     }
   }
   if (!m_noJumpDelay && a_controls.jumpPressed && m_movementType == MovementType::Grounded) {
@@ -462,13 +504,8 @@ void Rockman::climbingStateHandler(Controls a_buttons) {
         && !m_ladderSonar.behindEyes
         && !m_ladderSonar.atHeadTop
         && !m_ladderSonar.atHeadTopNextFrame) {
-      int y = m_y;
-      y = y % kScreenHeight;
-      int tileAlignedY = y & kScreenHeight;
-      SDL_Rect mapBoundary = m_pMap->getCurrentBoundary();
-      y = mapBoundary.y + tileAlignedY;
-      y -= m_boundingBoxHeightHalf;
-      m_y = y;
+      int deltaTileY = m_y % Tile::kHeight;
+      m_y = m_y - deltaTileY - m_boundingBoxHeightHalf;
       m_boundingBox.y = m_y + m_boundingBoxYOffset;
       m_ySpeed = m_ySpeedCollision;
       m_movementType = MovementType::Grounded;
@@ -644,6 +681,12 @@ void Rockman::onClimbing() {
   printf("onClimbing\n");
 #endif
   m_duration = 0;
+  if (m_ladderSonar.atHeadTop) {
+    m_pSprite->setCurrentAnimationIndex(AnimationType::Climbing);
+  }
+  else {
+    m_pSprite->setCurrentAnimationIndex(AnimationType::ClimbingTop);
+  }
   m_currentStateHandler = &Rockman::climbingStateHandler;
   m_movementType = MovementType::Climbing;
   m_stateChanged = true;
@@ -686,6 +729,14 @@ void Rockman::checkClimbing(Controls a_buttons) {
         || m_ladderSonar.atHeadTopNextFrame)) {
     return;
   }
+  if (m_noLadderGrabAssistAfterCollision && m_collisionDetected
+      && (!m_ladderSonar.belowFeetNextFrame
+          && !m_ladderSonar.atFeet
+          && !m_ladderSonar.behindEyes
+          && !m_ladderSonar.atHeadTop
+          && m_ladderSonar.atHeadTopNextFrame)) {
+    return;
+  }
   if (a_buttons.verticalDirection == Direction::Up
       && !(m_ladderSonar.belowFeetNextFrame
            && !m_ladderSonar.atFeet
@@ -693,29 +744,35 @@ void Rockman::checkClimbing(Controls a_buttons) {
            && !m_ladderSonar.atHeadTop
            && !m_ladderSonar.atHeadTopNextFrame)) {
     m_xSpeed = 0;
-    int x = m_x;
-    int screenRelativeX = x % kScreenWidth;
-    int currentTileX = x & kScreenHeight;
-    int deltaX = screenRelativeX - currentTileX;
-    m_x = m_x - deltaX + (Tile::kWidth / 2);
+    int deltaTileX = m_x % Tile::kWidth;
+    m_x = m_x - deltaTileX + (Tile::kWidth / 2);
     m_boundingBox.x = m_x + m_boundingBoxXOffset;
-    reverseHorizontalDirection();
-    if (!m_ladderSonar.belowFeetNextFrame
-        && !m_ladderSonar.atFeet
-        && !m_ladderSonar.behindEyes
-        && !m_ladderSonar.atHeadTop
-        && m_ladderSonar.atHeadTopNextFrame) {
-      // Rockman's position needs to be pushed up
-      // so the sprite is fully on the ladder.
-      SDL_Rect mapBoundary = m_pMap->getCurrentBoundary();
-      int screenRelativeY = m_y - mapBoundary.y;
-      int currentTileY = screenRelativeY & kScreenHeight;
-      int deltaY = screenRelativeY - currentTileY;
-      m_y = m_y - deltaY - m_boundingBox.h;
-      m_boundingBox.y = m_y + m_boundingBoxYOffset;
-      onFalling();
+    if (!m_noDirectionReversalAtLadderGrab) {
+      reverseHorizontalDirection();
+    }
+    if (!m_noUpwardsPushAtLadderBottomGrab) {
+      if (!m_ladderSonar.belowFeetNextFrame
+          && !m_ladderSonar.atFeet
+          && !m_ladderSonar.behindEyes
+          && !m_ladderSonar.atHeadTop
+          && m_ladderSonar.atHeadTopNextFrame) {
+        // Rockman's position needs to be pushed up
+        // so the sprite is fully on the ladder.
+        int deltaTileY = m_y % Tile::kHeight;
+        m_y = m_y - deltaTileY - m_boundingBox.h;
+        m_boundingBox.y = m_y + m_boundingBoxYOffset;
+        onFalling();
+      }
+      else {
+        onClimbing();
+      }
     }
     else {
+      bool movingUp = false;
+      if (m_ySpeed > FixedPoint8(0)) {
+        movingUp = true;
+      }
+      m_ladderSonar = m_pMap->getLadderSonar(m_x, m_y, m_y - m_ySpeed, movingUp);
       onClimbing();
     }
   }
@@ -725,11 +782,8 @@ void Rockman::checkClimbing(Controls a_buttons) {
                 && m_ladderSonar.behindEyes
                 && m_ladderSonar.atHeadTop)) {
     m_xSpeed = 0;
-    int x = m_x;
-    int screenRelativeX = x % kScreenWidth;
-    int currentTileX = x & kScreenHeight;
-    int deltaX = screenRelativeX - currentTileX;
-    m_x = m_x - deltaX + (Tile::kWidth / 2);
+    int deltaTileX = m_x % Tile::kWidth;
+    m_x = m_x - deltaTileX + (Tile::kWidth / 2);
     m_boundingBox.x = m_x + m_boundingBoxXOffset;
     if (m_ladderSonar.belowFeetNextFrame
         && !m_ladderSonar.atFeet
@@ -739,7 +793,9 @@ void Rockman::checkClimbing(Controls a_buttons) {
       m_y += m_boundingBoxHeightHalf;
       m_boundingBox.y = m_y + m_boundingBoxYOffset;
     }
-    reverseHorizontalDirection();
+    if (!m_noDirectionReversalAtLadderGrab) {
+      reverseHorizontalDirection();
+    }
     onClimbing();
   }
 }
