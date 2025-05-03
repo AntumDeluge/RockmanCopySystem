@@ -1,9 +1,10 @@
 #ifndef ENEMY_H
 #define ENEMY_H
 
-#include "globals.h"
+#include "SDL.h"
 #include "collider.h"
 
+class Camera;
 class Rockman;
 class Sprite;
 
@@ -16,7 +17,7 @@ class Enemy {
   public:
   Enemy();
   ~Enemy();
-  void draw();
+  void draw(Camera& a_camera);
   Collider getCollider();
   void hit(Rockman* a_pRockman);
   void update();

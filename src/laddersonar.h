@@ -11,6 +11,25 @@ struct LadderSonar {
   bool behindEyes;
   bool atHeadTop;
   bool atHeadTopNextFrame;
+  int getAsInt() {
+    int ladderSonarInt = 0;
+    if (belowFeetNextFrame) {
+      ladderSonarInt += 1;
+    }
+    if (atFeet) {
+      ladderSonarInt += 2;
+    }
+    if (behindEyes) {
+      ladderSonarInt += 4;
+    }
+    if (atHeadTop) {
+      ladderSonarInt += 8;
+    }
+    if (atHeadTopNextFrame) {
+      ladderSonarInt += 16;
+    }
+    return ladderSonarInt;
+  }
 };
 
 #endif

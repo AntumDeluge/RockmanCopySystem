@@ -1,29 +1,32 @@
 #include "font.h"
-#include "gameengine.h"
+#include "SDL.h"
+#include "servicelocator.h"
 
 
-Font::Font(const char* a_pIniFile, GameEngine* a_pGameEngine)
+Font::Font(const char* a_pIniFile)
   : m_characterHeight(0)
   , m_characterWidth(0)
   , m_characterSetBitmapMap(a_pIniFile)
-  , m_pGameEngine(a_pGameEngine)
   , m_characterSetBitmap(0)
 {
   const char* pCharacterSetBitmapFile = m_characterSetBitmapMap.getCStringValue("sheet", "Properties", "empty");
-  m_characterSetBitmap = m_pGameEngine->loadSurface(pCharacterSetBitmapFile);
+  VideoService& videoService = ServiceLocator::getVideoService();
+  m_characterSetBitmap = videoService.loadSurface(pCharacterSetBitmapFile);
   m_characterHeight = m_characterSetBitmapMap.getIntValue("characterHeight", "Properties", 0);
   m_characterWidth = m_characterSetBitmapMap.getIntValue("characterWidth", "Properties", 0);
 }
 
 Font::~Font() {
-  m_pGameEngine->unloadSurface(m_characterSetBitmap);
+  VideoService& videoService = ServiceLocator::getVideoService();
+  videoService.unloadSurface(m_characterSetBitmap);
 }
 
 void Font::drawNumber(int a_number, int a_x, int a_y, int a_nDigits) {
+  VideoService& videoService = ServiceLocator::getVideoService();
   SDL_Rect characterSetBitmapArea = { 0, 0, m_characterHeight, m_characterWidth };
   if (a_number < 0) {
     characterSetBitmapArea.y = m_characterSetBitmapMap.getIntValue("-", "Characters", 0);
-    m_pGameEngine->blitUiToScreen(a_x, a_y, m_characterSetBitmap, &characterSetBitmapArea);
+    videoService.blitUiToScreen(m_characterSetBitmap, a_x, a_y, &characterSetBitmapArea);
     a_number *= -1;
   }
   a_x += m_characterWidth;
@@ -36,7 +39,7 @@ void Font::drawNumber(int a_number, int a_x, int a_y, int a_nDigits) {
     }
     int digit = a_number / divider;
     characterSetBitmapArea.y = digit * m_characterHeight;
-    m_pGameEngine->blitUiToScreen(a_x, a_y, m_characterSetBitmap, &characterSetBitmapArea);
+    videoService.blitUiToScreen(m_characterSetBitmap, a_x, a_y, &characterSetBitmapArea);
     a_number -= (digit * divider);
     a_x += m_characterWidth;
   }
@@ -51,6 +54,7 @@ void Font::drawText(std::string a_text, SDL_Surface* a_pDestinationBitmap, int a
 }
 
 void Font::drawText(std::string& a_text, SDL_Surface* a_pDestinationBitmap, int a_x, int a_y, bool a_toScreen) {
+  VideoService& videoService = ServiceLocator::getVideoService();
   SDL_Rect characterSetBitmapArea = { 0, 0, m_characterHeight, m_characterWidth };
   for (unsigned int iCharacter = 0; iCharacter < a_text.length(); iCharacter++) {
     if (a_text[iCharacter] == ' ') {
@@ -61,10 +65,10 @@ void Font::drawText(std::string& a_text, SDL_Surface* a_pDestinationBitmap, int 
       characterSetBitmapArea.y = m_characterSetBitmapMap.getIntValue(character, "Characters", 0);
     }
     if (a_toScreen) {
-      m_pGameEngine->blitUiToScreen(a_x, a_y, m_characterSetBitmap, &characterSetBitmapArea);
+      videoService.blitToScreen(m_characterSetBitmap, a_x, a_y, &characterSetBitmapArea);
     }
     else {
-      m_pGameEngine->blitToSurface(a_x, a_y, m_characterSetBitmap, a_pDestinationBitmap, &characterSetBitmapArea);
+      videoService.blitToSurface(m_characterSetBitmap, a_pDestinationBitmap, a_x, a_y, &characterSetBitmapArea);
     }
     a_x += m_characterWidth;
   }

@@ -1,6 +1,7 @@
 #ifndef GAMESTATEMANAGER_H
 #define GAMESTATEMANAGER_H
 
+#include "controls.h"
 #include <string>
 
 class GameState;
@@ -25,7 +26,7 @@ class GameStateManager {
   std::string getInitMessage(InitMessageId::type a_id);
   void setInitMessage(InitMessageId::type a_id, const char* a_pMessage);
   void setNextState();
-  void update();
+  void update(Controls a_controls);
 };
 
 #endif

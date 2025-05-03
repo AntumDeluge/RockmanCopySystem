@@ -31,9 +31,9 @@ void GameStateManager::setNextState() {
   m_nextState = true;
 }
 
-void GameStateManager::update() {
+void GameStateManager::update(Controls a_controls) {
   if (!m_nextState) {
-    m_pCurrentState->update();
+    m_pCurrentState->update(a_controls);
   }
   else {
     delete m_pCurrentState;

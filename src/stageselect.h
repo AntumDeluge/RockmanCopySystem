@@ -1,11 +1,13 @@
 #ifndef STAGESELECT_H
 #define STAGESELECT_H
 
-#include "globals.h"
+#include "font.h"
+#include "controls.h"
 #include "gamestate.h"
 
 class GameStateManager;
 class MenuItem;
+struct SDL_Surface;
 
 class StageSelect : public GameState {
   private:
@@ -19,6 +21,7 @@ class StageSelect : public GameState {
   int m_nRockmans;
   bool m_levelChosen;
   GameStateManager* m_pGameStateManager;
+  Font m_font;
   MenuItem* m_pLevelMenu;
   MenuItem* m_pRockmanMenu;
   SDL_Surface* m_pSelectorIconBitmap;
@@ -27,7 +30,7 @@ class StageSelect : public GameState {
   StageSelect(GameStateManager* a_pGameStateManager);
   ~StageSelect();
   void draw();
-  void update();
+  void update(Controls a_controls);
 };
 
 #endif

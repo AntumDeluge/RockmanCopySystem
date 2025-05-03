@@ -1,4 +1,5 @@
 #include "enemy.h"
+#include "camera.h"
 #include "rockman.h"
 #include "sprite.h"
 
@@ -19,8 +20,10 @@ Enemy::~Enemy() {
   delete m_pSprite;
 }
 
-void Enemy::draw() {
-  m_pSprite->draw(m_boundingBox.x, m_boundingBox.y, 0);
+void Enemy::draw(Camera& a_camera) {
+  int x = a_camera.getScreenMappedXCoordinate(m_boundingBox.x);
+  int y = a_camera.getScreenMappedYCoordinate(m_boundingBox.y);
+  m_pSprite->draw(x, y, 0);
 }
 
 Collider Enemy::getCollider() {

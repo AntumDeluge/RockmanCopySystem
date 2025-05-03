@@ -1,7 +1,9 @@
 #include "stageselect.h"
 #include "gamestatemanager.h"
+#include "globals.h"
 #include "inidictionary.h"
 #include "menuitem.h"
+#include "servicelocator.h"
 #include <string>
 
 
@@ -12,6 +14,7 @@ StageSelect::StageSelect(GameStateManager* a_pGameStateManager)
   , m_nRockmans(0)
   , m_levelChosen(false)
   , m_pGameStateManager(a_pGameStateManager)
+  , m_font("font.ini")
   , m_pLevelMenu(0)
   , m_pRockmanMenu(0)
   , m_pSelectorIconBitmap(0)
@@ -21,7 +24,6 @@ StageSelect::StageSelect(GameStateManager* a_pGameStateManager)
   m_pLevelMenu = new MenuItem[m_nLevels];
   int x = kLevelMenuPosX;
   int y = kLevelMenuPosY;
-  Font& font = gameEngine->getFont();
   for (int iLevel = 0; iLevel < m_nLevels; iLevel++) {
     char indexString[2];
     sprintf(indexString, "%d", iLevel);
@@ -30,7 +32,7 @@ StageSelect::StageSelect(GameStateManager* a_pGameStateManager)
     const char* pValue = resourcesDictionary.getCStringValue(key.c_str(), "Levels", "empty");
     MenuItem menuItem(pValue, pValue, x, y);
     m_pLevelMenu[iLevel] = menuItem;
-    y += font.getCharacterHeight();
+    y += m_font.getCharacterHeight();
   }
   m_nRockmans = resourcesDictionary.getIntValue("amount", "Rockmans", 0);
   m_pRockmanMenu = new MenuItem[m_nRockmans];
@@ -46,43 +48,45 @@ StageSelect::StageSelect(GameStateManager* a_pGameStateManager)
     const char* pCaption = resourcesDictionary.getCStringValue(key.c_str(), "Rockmans", "empty");
     MenuItem menuItem(pCaption, pValue, x, y);
     m_pRockmanMenu[iRockman] = menuItem;
-    y += font.getCharacterHeight();
+    y += m_font.getCharacterHeight();
   }
-  m_pSelectorIconBitmap = gameEngine->loadSurface("selector.bmp");
+  VideoService& videoService = ServiceLocator::getVideoService();
+  m_pSelectorIconBitmap = videoService.loadSurface("selector.bmp");
 }
 
 StageSelect::~StageSelect() {
-  gameEngine->unloadSurface(m_pSelectorIconBitmap);
+  VideoService& videoService = ServiceLocator::getVideoService();
+  videoService.unloadSurface(m_pSelectorIconBitmap);
   delete[] m_pRockmanMenu;
   delete[] m_pLevelMenu;
 }
 
 void StageSelect::draw() {
-  gameEngine->clearScreen();
+  VideoService& videoService = ServiceLocator::getVideoService();
+  videoService.clearScreen();
   for (int iLevel = 0; iLevel < m_nLevels; iLevel++) {
-    m_pLevelMenu[iLevel].draw();
+    m_pLevelMenu[iLevel].draw(m_font);
   }
   for (int iRockman = 0; iRockman < m_nRockmans; iRockman++) {
-    m_pRockmanMenu[iRockman].draw();
+    m_pRockmanMenu[iRockman].draw(m_font);
   }
   int selectorIconX = m_pLevelMenu[m_iSelectedLevelMenuItem].getX();
   int selectorIconY = m_pLevelMenu[m_iSelectedLevelMenuItem].getY();
   // Place the icon in front of the menu item.
   selectorIconX -= m_pSelectorIconBitmap->w;
-  gameEngine->blitUiToScreen(selectorIconX, selectorIconY, m_pSelectorIconBitmap);
+  videoService.blitToScreen(m_pSelectorIconBitmap, selectorIconX, selectorIconY);
   if (m_levelChosen) {
     selectorIconX = m_pRockmanMenu[m_iSelectedRockmanMenuItem].getX();
     selectorIconY = m_pRockmanMenu[m_iSelectedRockmanMenuItem].getY();
     // Place the icon in front of the menu item.
     selectorIconX -= m_pSelectorIconBitmap->w;
-    gameEngine->blitUiToScreen(selectorIconX, selectorIconY, m_pSelectorIconBitmap);
+    videoService.blitToScreen(m_pSelectorIconBitmap, selectorIconX, selectorIconY);
   }
 }
 
-void StageSelect::update() {
-  Controls buttons = gameEngine->getControls();
-  if (buttons.verticalDirection != buttons.previousVerticalDirection) {
-    if (buttons.verticalDirection == Direction::Down) {
+void StageSelect::update(Controls a_controls) {
+  if (a_controls.verticalDirection != a_controls.previousVerticalDirection) {
+    if (a_controls.verticalDirection == Direction::Down) {
       if (!m_levelChosen) {
         int iLastLevelMenuItem = m_nLevels - 1;
         if (m_iSelectedLevelMenuItem < iLastLevelMenuItem) {
@@ -96,7 +100,7 @@ void StageSelect::update() {
         }
       }
     }
-    else if (buttons.verticalDirection == Direction::Up) {
+    else if (a_controls.verticalDirection == Direction::Up) {
       if (!m_levelChosen) {
         if (m_iSelectedLevelMenuItem > 0) {
           m_iSelectedLevelMenuItem--;
@@ -109,7 +113,7 @@ void StageSelect::update() {
       }
     }
   }
-  if (buttons.actionPressed) {
+  if (a_controls.actionPressed) {
     if (!m_levelChosen) {
       m_levelChosen = true;
     }
@@ -121,7 +125,7 @@ void StageSelect::update() {
       m_pGameStateManager->setNextState();
     }
   }
-  if (buttons.jumpPressed && m_levelChosen) {
+  if (a_controls.jumpPressed && m_levelChosen) {
     m_levelChosen = false;
   }
 }

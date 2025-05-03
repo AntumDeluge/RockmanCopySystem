@@ -14,9 +14,8 @@ MenuItem::MenuItem(const char* a_pCaption, const char* a_pValue, int a_x, int a_
   , m_value(a_pValue)
 {}
 
-void MenuItem::draw() {
-  Font& font = gameEngine->getFont();
-  font.drawText(m_caption, m_x, m_y);
+void MenuItem::draw(Font& a_font) {
+  a_font.drawText(m_caption, m_x, m_y);
 }
 
 std::string MenuItem::getValue() {

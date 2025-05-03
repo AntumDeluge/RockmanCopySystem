@@ -1,4 +1,6 @@
 #include "map.h"
+#include "camera.h"
+#include "servicelocator.h"
 #include <cassert>
 #include <fstream>
 
@@ -13,6 +15,8 @@ Map::Map(const char* a_pMapName, IniDictionary& a_iniDictionary)
   , m_nScreens(0)
   , m_nScreensHorizontal(0)
   , m_nScreensVertical(0)
+  , m_scrollStartPosTop(0)
+  , m_scrollStartPosBottom(kScreenHeight)
   , m_teleportStopPosY(0)
   , m_teleportStartYSpeed(0)
   , m_pBoundaries(0)
@@ -21,7 +25,8 @@ Map::Map(const char* a_pMapName, IniDictionary& a_iniDictionary)
   , m_ppScreens(0)
 {
   const char* tileSheetFilename = a_iniDictionary.getCStringValue("tileSheet", a_pMapName, "empty");
-  m_pTileSetBitmap = gameEngine->loadSurface(tileSheetFilename);
+  VideoService& videoService = ServiceLocator::getVideoService();
+  m_pTileSetBitmap = videoService.loadSurface(tileSheetFilename);
   assert(m_pTileSetBitmap != 0);
   const char* mapFilename = a_iniDictionary.getCStringValue("tileMap", a_pMapName, "empty");
   std::ifstream map(mapFilename, std::ifstream::binary);
@@ -117,30 +122,38 @@ Map::~Map() {
   }
   delete [] m_ppScreens;
   delete [] m_pTileSetBitmapAreas;
-  gameEngine->unloadSurface(m_pTileSetBitmap);
+  VideoService& videoService = ServiceLocator::getVideoService();
+  videoService.unloadSurface(m_pTileSetBitmap);
 }
 
-void Map::draw() {
-  SDL_Rect camera = gameEngine->getCamera();
-  int screen = camera.y / kScreenHeight * m_nScreensHorizontal + camera.x / kScreenWidth;
+void Map::draw(Camera& a_camera) {
+  VideoService& videoService = ServiceLocator::getVideoService();
+  const SDL_Rect& cameraAngleOfView = a_camera.getAngleOfView();
+  int screen = cameraAngleOfView.y / kScreenHeight * m_nScreensHorizontal + cameraAngleOfView.x / kScreenWidth;
   for (int iTile = 0; iTile < knTilesPerRowInScreen * knTilesPerColumnInScreen; iTile++) {
-    gameEngine->blitToScreen(m_ppScreens[screen][iTile].x, m_ppScreens[screen][iTile].y, m_pTileSetBitmap, &m_pTileSetBitmapAreas[m_ppScreens[screen][iTile].type]);
+    int x = a_camera.getScreenMappedXCoordinate(m_ppScreens[screen][iTile].x);
+    int y = a_camera.getScreenMappedYCoordinate(m_ppScreens[screen][iTile].y);
+    videoService.blitToScreen(m_pTileSetBitmap, x, y, &m_pTileSetBitmapAreas[m_ppScreens[screen][iTile].type]);
   }
   // Check if the camera is positioned on two horizontal screens at once.
-  int secondScreenViewableX = camera.x % kScreenWidth;
+  int secondScreenViewableX = cameraAngleOfView.x % kScreenWidth;
   if (secondScreenViewableX > 0) {
     screen++;
     for (int iTile = 0; iTile < knTilesPerRowInScreen * knTilesPerColumnInScreen; iTile++) {
-      gameEngine->blitToScreen(m_ppScreens[screen][iTile].x, m_ppScreens[screen][iTile].y, m_pTileSetBitmap, &m_pTileSetBitmapAreas[m_ppScreens[screen][iTile].type]);
+      int x = a_camera.getScreenMappedXCoordinate(m_ppScreens[screen][iTile].x);
+      int y = a_camera.getScreenMappedYCoordinate(m_ppScreens[screen][iTile].y);
+      videoService.blitToScreen(m_pTileSetBitmap, x, y, &m_pTileSetBitmapAreas[m_ppScreens[screen][iTile].type]);
     }
   }
   else {
     // Check if the camera is positioned on two vertical screens at once.
-    int secondScreenViewableY = camera.y % kScreenHeight;
+    int secondScreenViewableY = cameraAngleOfView.y % kScreenHeight;
     if (secondScreenViewableY > 0) {
       screen += m_nScreensHorizontal;
       for (int iTile = 0; iTile < knTilesPerRowInScreen * knTilesPerColumnInScreen; iTile++) {
-        gameEngine->blitToScreen(m_ppScreens[screen][iTile].x, m_ppScreens[screen][iTile].y, m_pTileSetBitmap, &m_pTileSetBitmapAreas[m_ppScreens[screen][iTile].type]);
+        int x = a_camera.getScreenMappedXCoordinate(m_ppScreens[screen][iTile].x);
+        int y = a_camera.getScreenMappedYCoordinate(m_ppScreens[screen][iTile].y);
+        videoService.blitToScreen(m_pTileSetBitmap, x, y, &m_pTileSetBitmapAreas[m_ppScreens[screen][iTile].type]);
       }
     }
   }
@@ -221,7 +234,7 @@ int Map::getMaxXDelta(SDL_Rect a_boundingBox, Direction::type a_direction) {
   if (sideTile.collidable) {
     return maxXDelta;
   }
-  // Get the tile to the bottom left or right.
+  // Get the tile to the top left or right.
   collisionY = a_boundingBox.y;
   sideTile = getTile(collisionX, collisionY);
   if (sideTile.collidable) {
@@ -291,15 +304,13 @@ Tile Map::getTile(int a_x, int a_y) {
     tile.type = 0;
     tile.x = a_x - (a_x % Tile::kWidth);
     tile.y = a_y - (a_y % Tile::kHeight);
-    // The left and right borders of the current boundary should be collidable.
-    // The top and bottom borders, however, should not.
-    if (a_y < m_pBoundaries[m_currentBoundaryIndex].y
-        || (a_y > m_pBoundaries[m_currentBoundaryIndex].y + kScreenHeight)) {
-      tile.collidable = false;
-    }
-    else {
-      tile.collidable = true;
-    }
+    tile.collidable = true;
+  }
+  // Tiles to the left and right of the current boundary should be collidable.
+  // Those above and below of the current boundary, however, should not.
+  if (a_y < m_pBoundaries[m_currentBoundaryIndex].y
+      || (a_y > m_pBoundaries[m_currentBoundaryIndex].y + kScreenHeight)) {
+    tile.collidable = false;
   }
   return tile;
 }
@@ -320,7 +331,7 @@ bool Map::isEnteringInvalidScreen(int a_x, int a_y) {
 
 bool Map::isLeavingScreenBottom(int a_y) {
   int screenRelativeY = a_y - m_pBoundaries[m_currentBoundaryIndex].y;
-  if (screenRelativeY > kScrollStartPosBottom) {
+  if (screenRelativeY >= m_scrollStartPosBottom) {
     return true;
   }
   return false;
@@ -328,7 +339,7 @@ bool Map::isLeavingScreenBottom(int a_y) {
 
 bool Map::isLeavingScreenTop(int a_y) {
   int screenRelativeY = a_y - m_pBoundaries[m_currentBoundaryIndex].y;
-  if (screenRelativeY <= kScrollStartPosTop) {
+  if (screenRelativeY <= m_scrollStartPosTop) {
     return true;
   }
   return false;
@@ -340,7 +351,7 @@ void Map::setCurrentBoundaryByPosition(int a_x, int a_y) {
 #endif
   for (int iBoundary = 0; iBoundary < m_nBoundaries; iBoundary++) {
 #ifdef DEBUG
-    printf("Boundary %i\n", iBoundary);
+  printf("Boundary %i\n", iBoundary);
 #endif
     if (a_x >= m_pBoundaries[iBoundary].x
         && a_x < m_pBoundaries[iBoundary].x + m_pBoundaries[iBoundary].w
@@ -350,4 +361,9 @@ void Map::setCurrentBoundaryByPosition(int a_x, int a_y) {
       return;
     }
   }
+}
+
+void Map::setScrollStartPositions(int a_scrollStartPosTop, int a_scrollStartPosBottom) {
+  m_scrollStartPosTop = a_scrollStartPosTop;
+  m_scrollStartPosBottom = a_scrollStartPosBottom;
 }

@@ -7,14 +7,13 @@ class FixedPoint8 {
 
   public:
   inline FixedPoint8(int a_integer, int a_fraction) {
-    m_value = a_integer << 8;
-    m_value = m_value | a_fraction;
+    m_value = a_integer * 256 + a_fraction;
   };
   inline FixedPoint8(int a_value) {
-    m_value = a_value << 8;
+    m_value = a_value * 256;
   };
   inline operator int() {
-    return m_value >> 8;
+    return m_value / 256;
   };
 
   // operator +
@@ -25,14 +24,14 @@ class FixedPoint8 {
   };
   inline FixedPoint8 operator+(const int& a_int) {
     FixedPoint8 fixedPoint8(0);
-    fixedPoint8.m_value = m_value + (a_int << 8);
+    fixedPoint8.m_value = m_value + (a_int * 256);
     return fixedPoint8;
   };
   inline void operator+=(const FixedPoint8& a_fixedPoint8) {
     m_value += a_fixedPoint8.m_value;
   };
   inline void operator+=(const int& a_int) {
-    m_value += (a_int << 8);
+    m_value += (a_int * 256);
   };
 
   // operator -
@@ -43,14 +42,14 @@ class FixedPoint8 {
   };
   inline FixedPoint8 operator-(const int& a_int) {
     FixedPoint8 fixedPoint8(0);
-    fixedPoint8.m_value = m_value - (a_int << 8);
+    fixedPoint8.m_value = m_value - (a_int * 256);
     return fixedPoint8;
   };
   inline void operator-=(const FixedPoint8& a_fixedPoint8) {
     m_value -= a_fixedPoint8.m_value;
   };
   inline void operator-=(const int& a_int) {
-    m_value -= (a_int << 8);
+    m_value -= (a_int * 256);
   };
 
   // operator =
@@ -58,7 +57,7 @@ class FixedPoint8 {
     m_value = a_fixedPoint8.m_value;
   };
   inline void operator=(const int& a_int) {
-    m_value = a_int << 8;
+    m_value = a_int * 256;
   };
 
   // operator ==
@@ -66,7 +65,7 @@ class FixedPoint8 {
     return m_value == a_fixedPoint8.m_value;
   };
   inline bool operator==(const int& a_int) {
-    return (m_value >> 8) == a_int;
+    return (m_value / 256) == a_int;
   };
 
   // operator !=
@@ -74,7 +73,7 @@ class FixedPoint8 {
     return m_value != a_fixedPoint8.m_value;
   };
   inline bool operator!=(const int& a_int) {
-    return (m_value >> 8) != a_int;
+    return (m_value / 256) != a_int;
   };
 
   // operator <
@@ -82,7 +81,7 @@ class FixedPoint8 {
     return m_value < a_fixedPoint8.m_value;
   };
   inline bool operator<(const int& a_int) {
-    return (m_value >> 8) < a_int;
+    return (m_value / 256) < a_int;
   };
 
   // operator >
@@ -90,12 +89,12 @@ class FixedPoint8 {
     return m_value > a_fixedPoint8.m_value;
   };
   inline bool operator>(const int& a_int) {
-    return (m_value >> 8) > a_int;
+    return (m_value / 256) > a_int;
   };
 
   // debug
   inline void print() {
-    printf("%d,%d (%d)", m_value >> 8, m_value & 0x00FF, m_value);
+    printf("%d,%d (%d)", m_value / 256, m_value & 0x00FF, m_value);
   };
   inline int get() {
     return m_value;

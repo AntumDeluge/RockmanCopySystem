@@ -1,5 +1,6 @@
 #include "globals.h"
 #include "gamestatemanager.h"
+#include "servicelocator.h"
 #include "timer.h"
 #include <stdlib.h>
 #ifdef PSP
@@ -16,7 +17,8 @@ int main(int argc, char* args[]) {
 #ifdef PSP
 extern "C" int main(int argc, char* args[]) {
 #endif
-  gameEngine = new GameEngine();
+  GameEngine* gameEngine = new GameEngine();
+  ServiceLocator::provideVideoService(gameEngine);
   GameStateManager* pGameStateManager = new GameStateManager();
 #ifdef WIN32
   const int knMillisecondsPerSecond = 1000;
@@ -31,7 +33,8 @@ extern "C" int main(int argc, char* args[]) {
   do {
     gameEngine->handleEvents();
     if (!gameEngine->paused()) {
-      pGameStateManager->update();
+      Controls controls = gameEngine->getControls();
+      pGameStateManager->update(controls);
     }
     pGameStateManager->draw();
 #ifdef PSP

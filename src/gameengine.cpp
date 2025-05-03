@@ -4,8 +4,7 @@
 GameEngine::GameEngine()
   : m_paused(false)
   , m_quitRequest(false)
-  , m_unpaused1Frame(false)
-  , m_font(0) {
+  , m_unpaused1Frame(false) {
 #ifdef WIN32
   SDL_putenv("SDL_VIDEODRIVER=directx");
   SDL_Init(SDL_INIT_TIMER | SDL_INIT_VIDEO);
@@ -33,21 +32,15 @@ GameEngine::GameEngine()
   m_buttons.jumpPressed = false;
   m_buttons.jumpDown = false;
   m_buttons.jumpReleased = false;
-  m_camera.x = 0;
-  m_camera.y = 1920; // FIXME: This should not be a constant!
-  m_camera.w = kScreenWidth;
-  m_camera.h = kScreenHeight;
 #ifdef WIN32
   m_pScreen = SDL_SetVideoMode(kScreenWidth, kScreenHeight, 0, SDL_SWSURFACE);
 #endif
 #ifdef PSP
   m_pScreen = SDL_SetVideoMode(kScreenWidth, kScreenHeight, 0, SDL_HWSURFACE | SDL_DOUBLEBUF);
 #endif
-  m_font = new Font("font.ini", this);
 }
 
 GameEngine::~GameEngine() {
-  delete m_font;
 #ifdef PSP
   SDL_JoystickClose(m_pJoystick);
 #endif
@@ -78,24 +71,20 @@ bool GameEngine::areColliding(SDL_Rect* a_pBoxA, SDL_Rect* a_pBoxB) {
   return true;
 }
 
-void GameEngine::blitToScreen(int a_x, int a_y, SDL_Surface* a_pSourceBitmap, SDL_Rect* a_pSourceBitmapArea) {
-  SDL_Rect offset;
-  offset.x = a_x - m_camera.x;
-  offset.y = a_y - m_camera.y;
-  SDL_BlitSurface(a_pSourceBitmap, a_pSourceBitmapArea, m_pScreen, &offset);
+void GameEngine::blitToScreen(SDL_Surface* a_pSourceBitmap, int a_x, int a_y, SDL_Rect* a_pSourceBitmapArea) {
+  SDL_Rect destinationRect = {a_x, a_y, 0, 0};
+  SDL_BlitSurface(a_pSourceBitmap, a_pSourceBitmapArea, m_pScreen, &destinationRect);
 }
 
-void GameEngine::blitToSurface(int a_x, int a_y, SDL_Surface* a_pSourceBitmap, SDL_Surface* a_destination, SDL_Rect* a_pSourceBitmapArea) {
-  SDL_Rect offset;
-  offset.x = a_x;
-  offset.y = a_y;
-  SDL_BlitSurface(a_pSourceBitmap, a_pSourceBitmapArea, a_destination, &offset);
+void GameEngine::blitToSurface(SDL_Surface* a_pSourceBitmap, SDL_Surface* a_pDestinationBitmap, int a_destinationX, int a_destinationY, SDL_Rect* a_pSourceBitmapArea) {
+  SDL_Rect destinationRect = {a_destinationX, a_destinationY, 0, 0};
+  SDL_BlitSurface(a_pSourceBitmap, a_pSourceBitmapArea, a_pDestinationBitmap, &destinationRect);
 }
 
-void GameEngine::blitUiToScreen(int a_x, int a_y, SDL_Surface* a_pSourceBitmap, SDL_Rect* a_pSourceBitmapArea) {
+void GameEngine::blitUiToScreen(SDL_Surface* a_pSourceBitmap, int a_destinationX, int a_destinationY, SDL_Rect* a_pSourceBitmapArea) {
   SDL_Rect offset;
-  offset.x = a_x;
-  offset.y = a_y;
+  offset.x = a_destinationX;
+  offset.y = a_destinationY;
   SDL_BlitSurface(a_pSourceBitmap, a_pSourceBitmapArea, m_pScreen, &offset);
 }
 
@@ -106,15 +95,10 @@ void GameEngine::clearScreen() {
 
 SDL_Surface* GameEngine::createSurface(int a_width, int a_height) {
   SDL_PixelFormat* pPixelFormat = m_pScreen->format;
-  SDL_Surface* pNewSurface = SDL_CreateRGBSurface(m_pScreen->flags, a_width, a_height, pPixelFormat->BitsPerPixel, pPixelFormat->Rmask, pPixelFormat->Gmask, pPixelFormat->Bmask, pPixelFormat->Amask);
+  SDL_Surface* pNewSurface = SDL_CreateRGBSurface(0, a_width, a_height, pPixelFormat->BitsPerPixel, pPixelFormat->Rmask, pPixelFormat->Gmask, pPixelFormat->Bmask, pPixelFormat->Amask);
   Uint32 colorKey = SDL_MapRGB(pNewSurface->format, 0xFF, 0x80, 0xFF);
   SDL_FillRect(pNewSurface, 0, colorKey);
   SDL_SetColorKey(pNewSurface, SDL_SRCCOLORKEY, colorKey);
-#ifdef PSP
-  SDL_Surface* pOptimisedSurface = SDL_DisplayFormatAlpha(pNewSurface);
-  SDL_FreeSurface(pNewSurface);
-  pNewSurface = pOptimisedSurface;
-#endif
   return pNewSurface;
 }
 
@@ -313,10 +297,6 @@ void GameEngine::handleEvents() {
   }
 }
 
-bool GameEngine::isOnCamera(SDL_Rect* a_pBox) {
-  return areColliding(&m_camera, a_pBox);
-}
-
 SDL_Surface* GameEngine::loadSurface(const char* a_pFilename) {
   SDL_Surface* pLoadedSurface = SDL_LoadBMP(a_pFilename);
   Uint32 colorKey = SDL_MapRGB(pLoadedSurface->format, 0xFF, 0x80, 0xFF);
@@ -329,30 +309,6 @@ SDL_Surface* GameEngine::loadSurface(const char* a_pFilename) {
   return pLoadedSurface;
 }
 
-void GameEngine::moveCamera(int a_xOffset, int a_yOffset) {
-  m_camera.x += a_xOffset;
-  m_camera.y += a_yOffset;
-}
-
-void GameEngine::setCameraBoundary(SDL_Rect a_boundary) {
-  m_cameraBoundary = a_boundary;
-  // necessary in case the boundary change is
-  // not a result of scrolling
-  m_camera.y = a_boundary.y;
-}
-
 void GameEngine::unloadSurface(SDL_Surface* a_pSurface) {
   SDL_FreeSurface(a_pSurface);
-}
-
-void GameEngine::updateCamera(SDL_Rect* a_pBox) {
-  int x = a_pBox->x + (a_pBox->w / 2) - (kScreenWidth / 2);
-  int maxX = m_cameraBoundary.x + m_cameraBoundary.w - kScreenWidth;
-  if (x < m_cameraBoundary.x) {
-    x = m_cameraBoundary.x;
-  }
-  else if (x > maxX) {
-    x = maxX;
-  }
-  m_camera.x = x;
 }

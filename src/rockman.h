@@ -1,7 +1,7 @@
 #ifndef ROCKMAN_H
 #define ROCKMAN_H
 
-#include "globals.h"
+#include "SDL.h"
 #include "bullet.h"
 #include "collider.h"
 #include "controls.h"
@@ -10,13 +10,16 @@
 #include "fixedpoint8.h"
 #include "laddersonar.h"
 
+class Camera;
+class Level;
 class Map;
 class Sprite;
 
 class Rockman {
   private:
   static const int kMaximumSimultaneousBullets = 3;
-  static const int kScrollYSpeed = 4;
+  static const int kScrollDownEndPosY = 7;
+  static const int kScrollUpEndPosY = 229;
   struct AnimationType {
     enum type {
       Standing = 0,
@@ -84,6 +87,17 @@ class Rockman {
   bool m_shooting;
   MovementType::type m_movementType;
   bool m_stateChanged;
+// behavior flags loaded from file
+  bool m_adjustPositionAfterScroll;
+  bool m_firstAcceleratingFrameIsRunningSpeed;
+  bool m_firstDeceleratingFrameIsRunningSpeed;
+  bool m_noJumpDelay;
+  bool m_onlyIntAdjustmentAtYCollision;
+// end constants
+// scroll constants loaded from file
+  int m_scrollStartFraction;
+  int m_scrollDownEndPosY;
+  int m_scrollUpEndPosY;
   int m_duration;
 // duration constants loaded from file
   int m_durationAccelerating;
@@ -111,6 +125,7 @@ class Rockman {
   YCollisionResponse::type m_currentYCollisionResponse;
   Bullet m_bullets[kMaximumSimultaneousBullets];
   SDL_Surface* m_pBulletBitmap;
+  Level* m_pLevel;
   Map* m_pMap;
   Sprite* m_pSprite;
   SDL_Rect m_boundingBox;
@@ -123,9 +138,8 @@ class Rockman {
   void deceleratingStateHandler(Controls a_buttons);
   void jumpingStateHandler(Controls a_buttons);
   void climbingStateHandler(Controls a_buttons);
-  void scrollingStateHandler(Controls a_buttons);
-  void fallScrollingStateHandler(Controls a_buttons);
-  void shootingStateHandler(Controls a_buttons);
+  void scrollingStateHandler();
+  void shootingStateHandler(Controls a_buttons, Camera& a_camera);
   void reelingStateHandler(Controls a_buttons);
   void teleportingStateHandler(Controls a_buttons);
   void transformingStateHandler(Controls a_buttons);
@@ -133,28 +147,30 @@ class Rockman {
   void onAccelerating();
   void onDecelerating();
   void onRunning();
-  void onJumping();
-  void onFalling();
+  void onJumping(bool a_setAnimation = false);
+  void onFalling(bool a_afterCollisionHandling = false);
   void onClimbing();
-  void onScrolling();
-  void onFallScrolling();
   void onReeling();
   void onTransforming();
   void checkClimbing(Controls a_buttons);
   void reverseHorizontalDirection();
-  void handleLeavingScreen();
   void handleXCollision();
-  void handleYCollision(Controls a_buttons);
+  bool handleYCollision(Controls a_buttons);
 
   public:
-  Rockman(const char* a_pIniFilename, Map* a_pMap);
+  Rockman(IniDictionary& a_iniDictionary, Level* a_pLevel, Map* a_pMap);
   ~Rockman();
-  void draw();
+  void draw(Camera& a_camera);
+  const SDL_Rect& getBoundingBox();
   Collider getCollider();
+  int getX();
+  int getY();
   bool isDestroyed();
+  void onScrollingStart();
+  void onScrollingStop();
   void receiveDamage();
   void reset();
-  void update();
+  void update(Controls a_controls, Camera& a_camera);
 };
 
 #endif

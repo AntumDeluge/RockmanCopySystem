@@ -1,10 +1,11 @@
 #ifndef SPRITE_H
 #define SPRITE_H
 
-#include "globals.h"
 #include "inidictionary.h"
 
 struct Animation;
+struct SDL_Rect;
+struct SDL_Surface;
 
 class Sprite {
   private:
