@@ -86,24 +86,30 @@ class Rockman {
   Direction::type m_direction;
   bool m_collisionDetected;
   bool m_destroyed;
+  bool m_invincible;
   bool m_scrolling;
   bool m_shooting;
   MovementType::type m_movementType;
   bool m_stateChanged;
 // behavior flags loaded from file
   bool m_adjustPositionAfterScroll;
-  bool m_checkForLadderAfterCollisionCheck;
+  bool m_allowLadderDownGrabBelowTop;
+  bool m_applyGravityBeforeCollisionCheck;
+  bool m_climbAfterJumpingGrab;
   bool m_firstAcceleratingFrameIsRunningSpeed;
   bool m_firstDeceleratingFrameIsRunningSpeed;
   bool m_firstScrollingFrameIsDifferentSpeed;
-  bool m_noDirectionReversalAtLadderGrab;
+  bool m_limitedEnclosedLadderGrabAssist;
   bool m_noGravityApplicationAfterJump;
   bool m_noJumpDelay;
-  bool m_noLadderGrabAssistAfterCollision;
-  bool m_noUpwardsPushAtLadderBottomGrab;
+  bool m_onlyIntAdjustmentAtBelowYSpeedMin;
+  bool m_onlyIntAdjustmentAtJumpReleased;
   bool m_onlyIntAdjustmentAtYCollision;
   bool m_resetFractionAtScrollStart;
   bool m_setFractionAtScrollStart;
+  bool m_specialUpwardsYCollisionTreatment;
+  bool m_useAlternativeLadderGrabCheck;
+  bool m_useBoundingBoxOffsetForLadderCheck;
 // end constants
 // scroll constants loaded from file
   int m_scrollStartFraction;
@@ -122,7 +128,7 @@ class Rockman {
   int m_durationShooting;
 // end constants
   int m_shootingDuration;
-  int m_invincibleDurationLeft;
+  int m_invincibleDuration;
   int m_teleportStopPosY;
 // coordinate constants loaded from file
   int m_boundingBoxHeightHalf;
@@ -167,6 +173,7 @@ class Rockman {
   void onReeling();
   void onTransforming();
   void checkClimbing(Controls a_buttons);
+  bool checkClimbing2(Controls a_buttons, LadderSonar a_ladderSonar, bool a_collisionDetected);
   void reverseHorizontalDirection();
   void handleXCollision();
   bool handleYCollision(Controls a_buttons);

@@ -12,11 +12,14 @@
 
 Level::Level(GameStateManager* a_pGameStateManager)
   : m_stateChanged(false)
+  , m_displayReadyMessage(false)
   , m_duration(0)
   , m_scrollDuration(0)
   , m_beforeScrollDuration(0)
   , m_afterScrollDuration(0)
   , m_verticalScrollSpeed(0)
+  , m_readyDuration(0)
+  , m_readyMessageDisplayInterval(0)
   , m_readyMessageWidth(0)
   , m_scrollDirection(Direction::None)
   , m_state(State::Waiting)
@@ -37,6 +40,8 @@ Level::Level(GameStateManager* a_pGameStateManager)
   font.drawTextOnBitmap(readyMessage, m_readyBitmap);
   m_pMap = new Map(levelName.c_str(), levelConstants);
   IniDictionary rockmanConstants(rockmanType.c_str());
+  m_readyDuration = rockmanConstants.getIntValue("ready", "Durations", 0);
+  m_readyMessageDisplayInterval = rockmanConstants.getIntValue("displayInterval", "ReadyMessage", 0);
   m_scrollDuration = rockmanConstants.getIntValue("scrolling", "Durations", 0);
   m_beforeScrollDuration = rockmanConstants.getIntValue("beforeScrolling", "Durations", 0);
   m_afterScrollDuration = rockmanConstants.getIntValue("afterScrolling", "Durations", 0);
@@ -69,11 +74,13 @@ void Level::draw() {
   }
   else {
     m_pMap->draw(m_camera);
-    // Center the message.
-    int readyMessagePosX = (kScreenWidth / 2) - (m_readyMessageWidth / 2);
-    VideoService& videoService = ServiceLocator::getVideoService();
-    videoService.copyToScreen(m_readyBitmap, readyMessagePosX, kReadyMessagePosY, 0);
-    if (m_duration == kWaitingDuration) {
+    if (m_displayReadyMessage) {
+      // Center the message.
+      int readyMessagePosX = (kScreenWidth / 2) - (m_readyMessageWidth / 2);
+      VideoService& videoService = ServiceLocator::getVideoService();
+      videoService.copyToScreen(m_readyBitmap, readyMessagePosX, kReadyMessagePosY, 0);
+    }
+    if (m_duration == m_readyDuration) {
       m_state = State::Playing;
       m_duration = 0;
     }
@@ -159,6 +166,11 @@ void Level::update(Controls a_controls) {
       m_state = State::Playing;
       m_duration = 0;
       m_stateChanged = true;
+    }
+  }
+  else if (m_state == State::Waiting) {
+    if (m_duration % m_readyMessageDisplayInterval == 0) {
+      m_displayReadyMessage = !m_displayReadyMessage;
     }
   }
   m_duration++;

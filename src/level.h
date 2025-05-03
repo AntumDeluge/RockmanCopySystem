@@ -17,7 +17,6 @@ class Level : public GameState {
   static const int kScreenHeight = 240;
   static const int kScreenWidth = 256;
   static const int kScrollYSpeed = 4;
-  static const int kWaitingDuration = 180;
   struct State {
     enum type {
       Waiting = 0,
@@ -28,11 +27,14 @@ class Level : public GameState {
     };
   };
   bool m_stateChanged;
+  bool m_displayReadyMessage;
   int m_duration;
   int m_scrollDuration;
   int m_beforeScrollDuration;
   int m_afterScrollDuration;
   int m_verticalScrollSpeed;
+  int m_readyDuration;
+  int m_readyMessageDisplayInterval;
   int m_readyMessageWidth;
   Direction::type m_scrollDirection;
   State::type m_state;

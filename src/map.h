@@ -43,7 +43,7 @@ class Map {
   }
   int getMaxXDelta(Rect a_boundingBox, Direction::type a_direction);
   int getMaxYDelta(Rect a_boundingBox, Direction::type a_direction);
-  LadderSonar getLadderSonar(int a_x, int a_y, int a_yNextFrame, bool a_movingUp);
+  LadderSonar getLadderSonar(int a_x, int a_y, int a_yNextFrame, int a_boundingBoxYOffset, bool a_movingUp, bool a_useBoundingBoxOffset);
   FixedPoint8 getTeleportStartPosX();
   FixedPoint8 getTeleportStartPosY();
   inline FixedPoint8 getTeleportStartYSpeed() {

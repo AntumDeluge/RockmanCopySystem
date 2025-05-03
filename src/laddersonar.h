@@ -6,6 +6,7 @@ struct LadderSonar {
   static const int kAtFeetOffsetY = 11;
   static const int kBehindEyesOffsetY = -4;
   static const int kAtHeadTopOffsetY = -12;
+  static const int kAtHeadTopBoundingBoxOffsetY = 0;
   bool belowFeetNextFrame;
   bool atFeet;
   bool behindEyes;

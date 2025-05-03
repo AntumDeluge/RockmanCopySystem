@@ -3,6 +3,7 @@
 
 struct Tile {
   static const int kWidth = 16;
+  static const int kWidthHalf = 8;
   static const int kHeight = 16;
   struct Type {
     enum type {

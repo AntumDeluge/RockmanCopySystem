@@ -31,8 +31,12 @@ Map::Map(const char* a_pMapName, IniDictionary& a_iniDictionary)
 #ifdef DEBUG
   std::printf("Map::load: mapFilename: %s\n", mapFilename);
 #endif
-  int nTilesWide = map.get();
-  int nTilesHigh = map.get();
+  int nTilesWide1 = map.get();
+  int nTilesWide2 = map.get();
+  int nTilesWide = nTilesWide1 * 256 + nTilesWide2;
+  int nTilesHigh1 = map.get();
+  int nTilesHigh2 = map.get();
+  int nTilesHigh = nTilesHigh1 * 256 + nTilesHigh2;
   m_nTileSetBitmapAreas = map.get();
   // Bitmap area zero is an empty tile that isn't included in the tile set.
   // Therefore, it doesn't count towards the total bitmap area count.
@@ -163,7 +167,7 @@ Rect Map::getCurrentBoundary() {
   return m_pBoundaries[m_currentBoundaryIndex];
 }
 
-LadderSonar Map::getLadderSonar(int a_x, int a_y, int a_yNextFrame, bool a_movingUp) {
+LadderSonar Map::getLadderSonar(int a_x, int a_y, int a_yNextFrame, int a_boundingBoxYOffset, bool a_movingUp, bool a_useBoundingBoxOffset) {
   LadderSonar ladderSonar = { false, false, false, false, false };
   int y = a_y + LadderSonar::kAtFeetOffsetY;
   Tile detectedTile = getTile(a_x, y);
@@ -175,13 +179,23 @@ LadderSonar Map::getLadderSonar(int a_x, int a_y, int a_yNextFrame, bool a_movin
   if (detectedTile.type == Tile::Type::Climbable) {
     ladderSonar.behindEyes = true;
   }
-  y = a_y + LadderSonar::kAtHeadTopOffsetY;
+  if (!a_useBoundingBoxOffset) {
+    y = a_y + LadderSonar::kAtHeadTopOffsetY;
+  }
+  else {
+    y = a_y + a_boundingBoxYOffset + LadderSonar::kAtHeadTopBoundingBoxOffsetY;
+  }
   detectedTile = getTile(a_x, y);
   if (detectedTile.type == Tile::Type::Climbable) {
     ladderSonar.atHeadTop = true;
   }
   if (a_movingUp) {
-    y = a_yNextFrame + LadderSonar::kAtHeadTopOffsetY;
+    if (!a_useBoundingBoxOffset) {
+      y = a_yNextFrame + LadderSonar::kAtHeadTopOffsetY;
+    }
+    else {
+      y = a_yNextFrame + a_boundingBoxYOffset + LadderSonar::kAtHeadTopBoundingBoxOffsetY;
+    }
     detectedTile = getTile(a_x, y);
     if (detectedTile.type == Tile::Type::Climbable) {
       ladderSonar.atHeadTopNextFrame = true;
