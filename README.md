@@ -1,6 +1,8 @@
 
 # Rockman Copy System
 
+by Benoît "BenoitRen" Renard
+
 ## Description
 
 Rockman Copy System is a video game engine that aims to replicate the physics of the Rockman (Mega
