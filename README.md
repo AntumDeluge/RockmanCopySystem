@@ -13,9 +13,6 @@ It's written in C++ using [SDL 1.2 and SDL 2.0][SDL] and is available for Window
 the PlayStation Portable. It's open source and subject to the terms of the
 [Mozilla Public License, v. 2.0](https://mozilla.org/MPL/2.0/).
 
-Note: while the DLL file for SDL 1.2 is included in the archive for Windows, the DLL file for SDL
-2.0 has to be downloaded separately.
-
 ## Building
 
 The [CMake Build System](https://cmake.org/) is used for configuring and compiling.
